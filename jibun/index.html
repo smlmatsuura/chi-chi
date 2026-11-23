@@ -79,6 +79,29 @@ nav.tabs button[aria-current=page]{color:var(--ac);font-weight:700}
 .cal button{aspect-ratio:1;border-radius:8px;border:1px solid var(--line);background:#FFFEFC;font-size:12px;cursor:pointer;position:relative;padding:0}
 .cal button.today{outline:2px solid var(--ink);outline-offset:-2px}
 .cal .empty{visibility:hidden}
+.ibgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ib{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#FFFEFC}
+.ib .k{font-size:12px;color:var(--sub)}
+.ib .v{font-family:var(--mincho);font-size:22px;font-weight:700;margin-top:2px}
+.ib .v small{font-family:'Zen Kaku Gothic New',sans-serif;font-size:12px;font-weight:500;color:var(--sub);margin-left:2px}
+.ib .d{font-size:12px;font-weight:700;margin-top:2px}
+.good{color:#2F6B45}.bad{color:#A0442C}.flat{color:var(--sub)}
+.mchips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px;-webkit-overflow-scrolling:touch}
+.mchips button{flex:none;min-height:36px;padding:0 12px;border-radius:18px;border:1px solid var(--line2);background:#FFFEFC;font-size:13px;cursor:pointer}
+.mchips button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.filebtn{display:inline-flex;align-items:center;position:relative;overflow:hidden}
+.filebtn input{position:absolute;inset:0;opacity:0;font-size:0;cursor:pointer}
+.adv{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.adv:last-child{border-bottom:none}
+.adv .ic{flex:none;width:28px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.adv.good .ic{background:#E1EDE4;color:#2F6B45}
+.adv.tip .ic{background:#EFECE6;color:#222}
+.adv.warn .ic{background:#F6E3DC;color:#A0442C}
+.adv b{display:block;font-size:14px;margin-bottom:2px}
+.adv p{margin:0;font-size:13px;line-height:1.6;color:#3A3A3A}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;min-height:44px;border-radius:10px;border:1px solid var(--line2);background:#FFFEFC;cursor:pointer;font-size:14px}
+.seg button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
 .legend{display:flex;gap:10px;align-items:center;font-size:11px;color:var(--sub);margin-top:8px}
 .legend i{display:inline-block;width:14px;height:14px;border-radius:4px;border:1px solid var(--line)}
 .vq{font-size:14px;font-weight:700;margin:12px 0 6px;display:flex;gap:8px}
@@ -290,7 +313,7 @@ function restoreBackup(o){
   if(!o||o.app!=='jibun-techo'||!o.docs)throw new Error('bad');
   var photos=o.photos||{};
   Object.keys(o.docs).forEach(function(k){
-    if(!/^(profile|body|d-\d{4}-\d\d-\d\d|w-\d{4}-\d\d-\d\d)$/.test(k))return;
+    if(!/^(profile|body|inbody|d-\d{4}-\d\d-\d\d|w-\d{4}-\d\d-\d\d)$/.test(k))return;
     var v=JSON.parse(JSON.stringify(o.docs[k]));
     // 写真データが入っていない写真の印は外す（Claude版からの移行など）
     if(v&&v.photos){Object.keys(v.photos).forEach(function(m){if(!photos[phKey(v.date,m)])delete v.photos[m];else v.photos[m]=true})}
@@ -384,6 +407,7 @@ function viewToday(){
   h+='<div class="d">'+(d.getMonth()+1)+'月'+d.getDate()+'日<small>（'+WD[d.getDay()]+'）'+(isToday?'今日':'')+'</small></div>';
   h+='<button type="button" class="iconbtn" data-act="nextDay" aria-label="次の日"'+(state.date>=today()?' disabled':'')+'>'+ICON.right+'</button></div>';
   if(!isToday)h+='<div style="text-align:center;margin:-6px 0 10px"><button type="button" class="linkbtn" data-act="goToday">今日にもどる</button></div>';
+  if(isToday){var adv=buildAdvice()[0];if(adv)h+='<section class="card" style="padding:4px 14px">'+adviceHtml([adv])+'<div style="text-align:right;margin-top:-6px"><button type="button" class="linkbtn" data-act="goRec">ほかのアドバイス</button></div></section>';}
 
   h+='<section class="card prompt"><div class="label">今日のお題　'+pad(e.prompt+1)+'/30</div><div class="q">'+esc(PROMPTS[e.prompt])+'</div>';
   h+='<label class="sr" for="answer">お題への答え</label><textarea id="answer" data-f="answer" placeholder="思ったことを自由に">'+esc(e.answer)+'</textarea>';
@@ -450,6 +474,215 @@ function weightChart(){
   s+='<text x="'+L+'" y="'+(H-6)+'" font-size="10" fill="#5E5E5E">'+md(start)+'</text><text x="'+(W-R)+'" y="'+(H-6)+'" font-size="10" text-anchor="end" fill="#5E5E5E">'+md(end)+'</text></svg>';
   return s;
 }
+/* ---------- InBody ---------- */
+var IB_COLS={ts:'日付',weight:'体重(kg)',smm:'骨格筋量(kg)',muscle:'筋肉量(kg)',fat:'体脂肪量(kg)',bmi:'BMI(kg/m²)',pbf:'体脂肪率(%)',bmr:'基礎代謝量(kcal)',score:'InBody点数',
+  armR:'右腕筋肉量(kg)',armL:'左腕筋肉量(kg)',trunk:'体幹筋肉量(kg)',legR:'右脚筋肉量(kg)',legL:'左脚筋肉量(kg)',
+  fArmR:'右腕体脂肪量(kg)',fArmL:'左腕体脂肪量(kg)',fTrunk:'体幹体脂肪量(kg)',fLegR:'右脚体脂肪量(kg)',fLegL:'左脚体脂肪量(kg)',
+  whr:'ウエストヒップ比',waist:'腹囲(cm)',vfl:'内臓脂肪レベル(Level)',water:'体水分量(L)',protein:'タンパク質量(kg)',mineral:'ミネラル量(kg)',smi:'骨格筋指数(kg/m²)'};
+// [key, 表示名, 単位, 減って良い=-1/増えて良い=+1, 小数桁]
+var IB_METRICS=[['weight','体重','kg',-1,1],['smm','骨格筋量','kg',1,1],['pbf','体脂肪率','%',-1,1],['fat','体脂肪量','kg',-1,1],
+  ['vfl','内臓脂肪レベル','',-1,0],['waist','腹囲','cm',-1,1],['score','InBody点数','点',1,0],['bmr','基礎代謝','kcal',1,0]];
+function parseInBody(text){
+  text=text.replace(/^﻿/,'');
+  var lines=text.split(/\r?\n/).filter(function(l){return l.trim()});
+  if(lines.length<2)throw new Error('empty');
+  var head=lines[0].split(',').map(function(h){return h.trim().replace(/^"|"$/g,'')});
+  var idx={};Object.keys(IB_COLS).forEach(function(k){idx[k]=head.indexOf(IB_COLS[k])});
+  if(idx.ts<0||idx.weight<0)throw new Error('format');
+  var out=[];
+  lines.slice(1).forEach(function(l){
+    var c=l.split(',').map(function(x){return x.trim().replace(/^"|"$/g,'')});
+    var ts=(c[idx.ts]||'').replace(/\D/g,'');if(ts.length<8)return;
+    var r={ts:ts,date:ts.slice(0,4)+'-'+ts.slice(4,6)+'-'+ts.slice(6,8)};
+    Object.keys(IB_COLS).forEach(function(k){if(k==='ts'||idx[k]<0)return;var v=parseFloat(c[idx[k]]);if(!isNaN(v))r[k]=v});
+    out.push(r);
+  });
+  return out;
+}
+function importInBody(text){
+  var rows=parseInBody(text), cur=get('inbody')||{list:[]}, map={}, added=0;
+  var csvDates={};rows.forEach(function(r){csvDates[r.date]=true});
+  // 同じ日に手入力した分は、CSVの正確な値に置き換える
+  cur.list.forEach(function(r){if(!(r.manual&&csvDates[r.date]))map[r.ts]=r});
+  rows.forEach(function(r){if(!map[r.ts])added++;map[r.ts]=r});
+  var list=Object.keys(map).sort().map(function(k){return map[k]});
+  put('inbody',{list:list});
+  return added;
+}
+function ibDiff(a,b,m){
+  if(a==null||b==null)return '';
+  var d=a-b, f=Math.pow(10,m[4]), dr=Math.round(d*f)/f;
+  if(dr===0)return '<div class="d flat">前回と同じ</div>';
+  var cls=(dr*m[3]>0)?'good':'bad';
+  return '<div class="d '+cls+'">'+(dr>0?'▲ +':'▼ −')+Math.abs(dr).toFixed(m[4])+'<span class="sr">（前回比）</span></div>';
+}
+function ibChart(list,m){
+  var pts=list.filter(function(r){return r[m[0]]!=null}).map(function(r){return {t:parse(r.date).getTime(),v:r[m[0]],date:r.date}});
+  if(pts.length<2)return '<p class="muted">2回以上の測定があるとグラフが出ます。</p>';
+  var vs=pts.map(function(p){return p.v}), mn=Math.min.apply(null,vs), mx=Math.max.apply(null,vs), pad=(mx-mn)*0.12||1;mn-=pad;mx+=pad;
+  var t0=pts[0].t, t1=pts[pts.length-1].t||t0+1;
+  var W=320,H=160,L=36,R=8,T=10,B=22;
+  function X(t){return L+(W-L-R)*(t1===t0?0.5:(t-t0)/(t1-t0))}
+  function Y(v){return T+(H-T-B)*(1-(v-mn)/(mx-mn))}
+  var dg=m[4], s='<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="InBody '+m[1]+'の推移">';
+  [mn+pad,(mn+mx)/2,mx-pad].forEach(function(v){s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="#E3DED5"/><text x="'+(L-4)+'" y="'+(Y(v)+4)+'" font-size="10" text-anchor="end" fill="#5E5E5E">'+v.toFixed(dg)+'</text>'});
+  s+='<polyline fill="none" stroke="#222" stroke-width="1.8" stroke-linejoin="round" points="'+pts.map(function(p){return X(p.t)+','+Y(p.v)}).join(' ')+'"/>';
+  pts.forEach(function(p,i){var last=i===pts.length-1;s+='<circle cx="'+X(p.t)+'" cy="'+Y(p.v)+'" r="'+(last?4:2.2)+'" fill="'+(last?'#4F6B56':'#222')+'"/>'});
+  var y0=pts[0].date, y1=pts[pts.length-1].date;
+  s+='<text x="'+L+'" y="'+(H-6)+'" font-size="10" fill="#5E5E5E">'+y0.slice(0,7).replace('-','/')+'</text><text x="'+(W-R)+'" y="'+(H-6)+'" font-size="10" text-anchor="end" fill="#5E5E5E">'+y1.slice(0,7).replace('-','/')+'</text></svg>';
+  return s;
+}
+function ibManualForm(){
+  var now=new Date();
+  var h='<div style="margin-top:12px"><button type="button" class="linkbtn" data-act="ibToggleForm" aria-expanded="'+(!!state.ibForm)+'">'+(state.ibForm?'手入力を閉じる':'＋ 用紙を見ながら手入力する')+'</button></div>';
+  if(!state.ibForm)return h;
+  h+='<div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:6px;background:#FFFEFC">';
+  h+='<div class="grid2"><div class="field"><label for="ibDate">測定日</label><input id="ibDate" type="date" value="'+ymd(now)+'"></div><div class="field"><label for="ibTime">時刻</label><input id="ibTime" type="time" value="'+pad(now.getHours())+':'+pad(now.getMinutes())+'"></div></div>';
+  h+='<div class="grid2" style="margin-top:10px">';
+  IB_METRICS.forEach(function(m){
+    h+='<div class="field"><label for="ibf_'+m[0]+'">'+m[1]+'</label><div class="unit"><input id="ibf_'+m[0]+'" type="number" inputmode="decimal" step="'+(m[4]?'0.1':'1')+'">'+(m[2]?'<span>'+m[2]+'</span>':'')+'</div></div>';
+  });
+  h+='</div><p class="muted" style="margin:8px 0 0;font-size:12px">わかる項目だけでOK。体重は必須です。</p>';
+  h+='<div style="margin-top:10px"><button type="button" class="btn" data-act="ibSaveManual">この測定を追加</button></div></div>';
+  return h;
+}
+function ibHistory(list){
+  if(!state.ibHist)return '<div><button type="button" class="linkbtn" data-act="ibToggleHist">測定の一覧を見る・消す</button></div>';
+  var h='<div><button type="button" class="linkbtn" data-act="ibToggleHist">一覧を閉じる</button></div><div class="scroll"><table class="body"><thead><tr><th>日付</th><th>体重</th><th>骨格筋</th><th>体脂肪率</th><th></th></tr></thead><tbody>';
+  list.slice().reverse().slice(0,30).forEach(function(r){
+    h+='<tr><td>'+r.date.slice(2).replace(/-/g,'/')+(r.manual?' <span style="font-size:11px;color:var(--sub)">手入力</span>':'')+'</td><td>'+(r.weight!=null?r.weight.toFixed(1):'—')+'</td><td>'+(r.smm!=null?r.smm.toFixed(1):'—')+'</td><td>'+(r.pbf!=null?r.pbf.toFixed(1):'—')+'</td><td><button type="button" class="linkbtn" data-act="ibDel" data-v="'+r.ts+'" aria-label="'+r.date+'の測定を消す">消す</button></td></tr>';
+  });
+  h+='</tbody></table></div>';
+  if(list.length>30)h+='<p class="muted" style="margin:4px 0 0;font-size:12px">新しい30件を表示しています</p>';
+  return h;
+}
+function viewInBody(){
+  var ib=get('inbody'), list=ib&&ib.list||[];
+  var imp='<label class="btn ghost filebtn">'+(list.length?'新しいデータを取り込む':'InBodyのCSVを取り込む')+'<input type="file" accept=".csv,text/csv,text/plain" data-inbody="1" aria-label="InBodyのCSVを選ぶ"></label>';
+  var h='<section class="card"><h2>InBody'+(list.length?'<small>'+list.length+'回分</small>':'')+'</h2>';
+  if(!list.length){
+    h+='<p class="muted" style="margin:0 0 10px">InBodyアプリで書き出したCSVファイルを選ぶか、結果用紙を見ながら手入力すると、測定結果の推移が見られます。</p>'+imp+ibManualForm()+'<p class="muted" id="ibMsg" style="margin:8px 0 0"></p></section>';
+    return h;
+  }
+  var last=list[list.length-1], prev=list.length>1?list[list.length-2]:null, first=list[0];
+  var d=parse(last.date), hh=last.ts.slice(8,10), mi=last.ts.slice(10,12);
+  h+='<p class="muted" style="margin:-4px 0 10px">最新 '+d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+(hh?' '+hh+':'+mi:'')+'　矢印は前回との比較</p><div class="ibgrid">';
+  IB_METRICS.forEach(function(m){
+    if(last[m[0]]==null)return;
+    h+='<div class="ib"><div class="k">'+m[1]+'</div><div class="v">'+last[m[0]].toFixed(m[4])+'<small>'+m[2]+'</small></div>'+(prev?ibDiff(last[m[0]],prev[m[0]],m):'')+'</div>';
+  });
+  h+='</div>';
+  var mk=state.ibMetric||'weight', m=IB_METRICS.filter(function(x){return x[0]===mk})[0]||IB_METRICS[0];
+  h+='<h3 style="font-size:14px;margin:16px 0 8px">推移</h3><div class="mchips" role="group" aria-label="グラフの項目">';
+  IB_METRICS.forEach(function(x){h+='<button type="button" data-act="ibMetric" data-v="'+x[0]+'" aria-pressed="'+(x[0]===m[0])+'">'+x[1]+'</button>'});
+  h+='</div>'+ibChart(list,m);
+  if(first[m[0]]!=null&&last[m[0]]!=null&&list.length>1){
+    var f=Math.pow(10,m[4]), tot=Math.round((last[m[0]]-first[m[0]])*f)/f;
+    h+='<p class="muted" style="margin:6px 0 0;text-align:center">'+first.date.slice(0,7).replace('-','/')+'から <b class="'+(tot===0?'flat':(tot*m[3]>0?'good':'bad'))+'">'+(tot>0?'+':'')+tot.toFixed(m[4])+m[2]+'</b></p>';
+  }
+  if(last.trunk!=null){
+    h+='<h3 style="font-size:14px;margin:16px 0 8px">部位別（最新）</h3><div class="scroll"><table class="body"><thead><tr><th></th><th>右腕</th><th>左腕</th><th>体幹</th><th>右脚</th><th>左脚</th></tr></thead><tbody>';
+    h+='<tr><td>筋肉量</td>'+['armR','armL','trunk','legR','legL'].map(function(k){return '<td>'+(last[k]!=null?last[k].toFixed(1):'—')+'</td>'}).join('')+'</tr>';
+    h+='<tr><td>体脂肪</td>'+['fArmR','fArmL','fTrunk','fLegR','fLegL'].map(function(k){return '<td>'+(last[k]!=null?last[k].toFixed(1):'—')+'</td>'}).join('')+'</tr>';
+    h+='</tbody></table></div><p class="muted" style="margin:4px 0 0;font-size:11px">単位 kg</p>';
+  }
+  h+='<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+imp+'</div>'+ibManualForm()+'<p class="muted" id="ibMsg" style="margin:8px 0 0"></p>'+ibHistory(list)+'<div style="margin-top:4px"><button type="button" class="linkbtn" data-act="ibClear">InBodyのデータを全部消す</button></div></section>';
+  return h;
+}
+
+/* ---------- アドバイス ---------- */
+var GENERAL_TIPS=[
+ ['食べる順番','野菜やスープから食べ始めると、早食いを防げて満足感も出やすくなります。'],
+ ['タンパク質は毎食','肉・魚・卵・大豆製品を毎食少しずつ。筋肉を守りながら体脂肪を落とす土台になります。'],
+ ['夜はゆっくり','寝る2〜3時間前までに食事を終えると、睡眠の質も上がりやすくなります。'],
+ ['歩数をちょい足し','ひと駅歩く・階段を使うなど、日常の動きを増やすのが一番続けやすい運動です。'],
+ ['飲み物にも注意','甘いカフェラテやジュースは意外と高カロリー。水やお茶をベースにすると楽に減らせます。'],
+ ['体重は毎日同じ条件で','朝起きてトイレのあとなど、同じタイミングで測ると変化がわかりやすくなります。'],
+ ['完璧より継続','1日食べすぎても気にしすぎずに。次の食事で整えれば大丈夫です。'],
+ ['よく噛む','ひと口20〜30回を意識すると、少ない量でも満腹感を感じやすくなります。'],
+ ['筋トレは週2〜3回','スクワットなど大きい筋肉を使う運動で、代謝が落ちにくい体を作れます。'],
+ ['お酒は量を決めて','飲むなら量を先に決めて、おつまみは枝豆や刺身などタンパク質系を選ぶのがおすすめ。']
+];
+function weightSeries(){
+  var m={};
+  allEntries().forEach(function(e){var w=parseFloat(e.weight);if(!isNaN(w))m[e.date]=w});
+  var ib=get('inbody');if(ib)ib.list.forEach(function(r){if(r.weight!=null&&m[r.date]==null)m[r.date]=r.weight});
+  return Object.keys(m).sort().map(function(k){return {date:k,w:m[k]}});
+}
+function avgOf(arr){return arr.length?arr.reduce(function(a,b){return a+b},0)/arr.length:null}
+function ibNear(list,days){ // 最新からdays日以上前で一番近い測定
+  if(!list.length)return null;var last=list[list.length-1];
+  for(var i=list.length-2;i>=0;i--){if(diffDays(list[i].date,last.date)>=days)return list[i]}
+  return null;
+}
+function buildAdvice(){
+  var out=[], p=profile(), sex=p.sex||'';
+  var ib=get('inbody'), list=ib&&ib.list||[], last=list[list.length-1], prev=list.length>1?list[list.length-2]:null;
+  var base=ibNear(list,21)||prev;
+  var bmi=last&&last.bmi!=null?last.bmi:null;
+  var height=(last&&last.bmi&&last.weight)?Math.sqrt(last.weight/last.bmi):null;
+  var goal=parseFloat(p.goal.weightGoal);
+
+  // 痩せすぎ防止
+  if(bmi!=null&&bmi<18.5)out.push(['warn','これ以上の減量はおすすめしません','BMIが18.5を下回っています。体重を減らすより、しっかり食べて筋肉をつけることを優先しましょう。']);
+  else if(height&&!isNaN(goal)&&goal/(height*height)<18.5)out.push(['warn','目標体重を見直してみて','目標体重だとBMIが18.5を下回ります。体重より、体脂肪率や見た目の変化を目標にするのがおすすめです。']);
+
+  // InBodyの変化
+  if(last&&base){
+    var dW=last.weight-base.weight, dM=(last.smm!=null&&base.smm!=null)?last.smm-base.smm:null, dF=(last.fat!=null&&base.fat!=null)?last.fat-base.fat:null;
+    var span=diffDays(base.date,last.date), lbl=(span>0?span+'日前（'+md(base.date)+'）の測定から':'前回の測定から');
+    if(dM!=null&&dM<=-0.4&&dW<0)out.push(['warn','筋肉も一緒に減っています',lbl+'骨格筋量が'+Math.abs(dM).toFixed(1)+'kg減りました。食事を減らしすぎていないか確認して、タンパク質を毎食とり、週2〜3回の筋トレを入れましょう。']);
+    else if(dF!=null&&dF<0&&dM!=null&&dM>=-0.1)out.push(['good','理想的な減り方です',lbl+'体脂肪が'+Math.abs(dF).toFixed(1)+'kg減って、筋肉はキープできています。今のやり方を続けましょう。']);
+    if(dF!=null&&dF>=0.8)out.push(['tip','体脂肪が増えています',lbl+'体脂肪が'+dF.toFixed(1)+'kg増えました。間食や夜遅い食事、飲み物を一度見直してみましょう。']);
+    if(dM!=null&&dM>=0.5&&!(dF!=null&&dF<0))out.push(['good','筋肉が増えています',lbl+'骨格筋量が'+dM.toFixed(1)+'kg増えました。体重が減らなくても、体は確実に変わっています。']);
+  }
+  if(last&&last.pbf!=null&&sex){
+    var hi=sex==='f'?28:20, lo=sex==='f'?18:10;
+    if(last.pbf>hi)out.push(['tip','体脂肪率は目安より少し高め','目安は'+lo+'〜'+hi+'%です。食事は「減らす」より「整える」を意識して、筋トレとウォーキングを組み合わせるのが近道です。']);
+    else if(last.pbf>=lo)out.push(['good','体脂肪率は標準の範囲','いまは目安（'+lo+'〜'+hi+'%）の中です。ここからは体重の数字より、見た目や体の軽さを大事にしていきましょう。']);
+  }
+  if(last&&last.vfl!=null&&last.vfl>=10)out.push(['warn','内臓脂肪が多めです','内臓脂肪レベルが'+last.vfl+'です。ウォーキングなどの有酸素運動と、お酒・甘いものを控えるのが効果的です。']);
+
+  // 体重のペース
+  var ws=weightSeries();
+  if(ws.length>=2){
+    var lw=ws[ws.length-1], pw=null;
+    for(var i=ws.length-2;i>=0;i--){if(diffDays(ws[i].date,lw.date)>=14){pw=ws[i];break}}
+    if(pw&&diffDays(pw.date,lw.date)<=60){
+      var weeks=diffDays(pw.date,lw.date)/7, rate=(lw.w-pw.w)/pw.w/weeks*100;
+      if(rate<-1)out.push(['warn','ペースが速すぎるかも','1週間に体重の1%以上減っています。急な減量は筋肉が落ちたりリバウンドしやすいので、もう少しゆっくりで大丈夫です。']);
+      var recent=ws.filter(function(x){return diffDays(x.date,lw.date)<=21});
+      if(recent.length>=5){var mx=Math.max.apply(null,recent.map(function(x){return x.w})),mn=Math.min.apply(null,recent.map(function(x){return x.w}));
+        if(mx-mn<=0.6&&!isNaN(goal)&&lw.w>goal+0.5)out.push(['tip','停滞期かもしれません','3週間ほど体重が横ばいです。体が慣れてきたサインなので、やめずに続けるのが一番。運動の種類を少し変えてみるのもおすすめです。']);}
+    }
+  }
+
+  // ここ7日の記録
+  var t=today(), wk=[];for(var d=0;d<7;d++){var e=get('d-'+addDays(t,-d));if(hasContent(e))wk.push(e)}
+  if(wk.length<3)out.push(['tip','まずは記録を習慣に','ここ7日で記録したのは'+wk.length+'日です。全部書かなくても、体重だけ・写真1枚だけでもOK。続けることが一番の近道です。']);
+  else{
+    var sl=wk.map(function(e){return parseFloat(e.sleep)}).filter(function(x){return !isNaN(x)}), sa=avgOf(sl);
+    if(sl.length>=3&&sa<6)out.push(['tip','睡眠が少なめです','ここ最近の平均は'+sa.toFixed(1)+'時間。寝不足だと食欲が増えやすくなるので、まずは30分早く寝ることから。']);
+    var wa=wk.filter(function(e){return e.water}).map(function(e){return e.water}), wav=avgOf(wa);
+    if(wa.length>=3&&wav<5)out.push(['tip','水分を少し増やしてみて','1日平均'+(wav*0.2).toFixed(1)+'Lです。食事以外に1.2〜1.5Lくらいを目安に、こまめに飲みましょう。']);
+    var snack=p.habits.filter(function(h){return /間食/.test(h)})[0];
+    if(snack){var n=wk.filter(function(e){return e.habits&&e.habits[snack]}).length;
+      if(n<=2)out.push(['tip','間食がポイントかも','ここ7日で「'+snack+'」ができたのは'+n+'日。食べるならナッツやヨーグルト、ゆで卵などに置き換えるのがおすすめです。']);}
+    var hr=avgOf(wk.map(habitRate));
+    if(hr>=0.7)out.push(['good','習慣がしっかり続いています','ここ7日の習慣の達成は'+Math.round(hr*100)+'%。この調子です！']);
+  }
+
+  var order={warn:0,tip:1,good:2};
+  out.sort(function(a,b){return order[a[0]]-order[b[0]]});
+  out=out.slice(0,4);
+  if(out.length<2){var g=GENERAL_TIPS[Math.abs(diffDays('2026-01-01',t))%GENERAL_TIPS.length];out.push(['tip',g[0],g[1]])}
+  return out;
+}
+function adviceHtml(items){
+  var icon={good:'◎',tip:'!',warn:'△'};
+  return items.map(function(a){return '<div class="adv '+a[0]+'"><span class="ic" aria-hidden="true">'+icon[a[0]]+'</span><div><b>'+esc(a[1])+'</b><p>'+esc(a[2])+'</p></div></div>'}).join('');
+}
+
 function viewRec(){
   var es=allEntries(), p=profile();
   var ws=es.filter(function(e){return e.weight!==''&&!isNaN(parseFloat(e.weight))});
@@ -463,7 +696,11 @@ function viewRec(){
   var goal=parseFloat(p.goal.weightGoal);
   if(last!=null&&!isNaN(goal))h+='<p class="muted" style="margin:10px 0 0;text-align:center">目標まであと <b style="color:var(--ink)">'+Math.max(0,last-goal).toFixed(1)+' kg</b></p>';
   h+='</section>';
+  h+='<section class="card"><h2>アドバイス</h2>'+adviceHtml(buildAdvice());
+  if(!profile().sex)h+='<p class="muted" style="margin:8px 0 0;font-size:12px">「私」タブで性別を選ぶと、体脂肪率の目安も見てアドバイスします。</p>';
+  h+='<p class="muted" style="margin:8px 0 0;font-size:11px">記録から自動で出している目安です。持病がある・体調が気になるときは医師に相談してください。</p></section>';
   h+='<section class="card"><h2>体重<small>直近30日</small></h2>'+weightChart()+'</section>';
+  h+=viewInBody();
 
   var y=+state.month.slice(0,4), m=+state.month.slice(5,7);
   var firstD=new Date(y,m-1,1), nd=new Date(y,m,0).getDate(), off=firstD.getDay();
@@ -528,7 +765,10 @@ function viewMe(){
   });
   h+='</section>';
 
-  h+='<section class="card"><h2>からだの目標</h2><div class="grid2">';
+  h+='<section class="card"><h2>からだの目標</h2>';
+  h+='<div class="field" style="margin-bottom:12px"><label>性別（体脂肪率の目安に使います）</label><div class="seg" role="group" aria-label="性別">';
+  [['f','女性'],['m','男性']].forEach(function(o){h+='<button type="button" data-act="setSex" data-v="'+o[0]+'" aria-pressed="'+(p.sex===o[0])+'">'+o[1]+'</button>'});
+  h+='</div></div><div class="grid2">';
   [['weightNow','体重（はじめ）','kg'],['weightGoal','体重（目標）','kg'],['fatNow','体脂肪（はじめ）','%'],['fatGoal','体脂肪（目標）','%'],['waistNow','ウエスト（はじめ）','cm'],['waistGoal','ウエスト（目標）','cm']].forEach(function(f){
     h+='<div class="field"><label for="g'+f[0]+'">'+f[1]+'</label><div class="unit"><input id="g'+f[0]+'" type="number" inputmode="decimal" step="0.1" data-g="'+f[0]+'" value="'+esc(g[f[0]])+'"><span>'+f[2]+'</span></div></div>';
   });
@@ -595,6 +835,32 @@ function onClick(ev){
     case 'water':e=entry(state.date);var wv=+b.dataset.v;e.water=e.water===wv?wv-1:wv;saveEntry(e);render(true);break;
     case 'habit':e=entry(state.date);var hn=p.habits[+b.dataset.i];e.habits=e.habits||{};e.habits[hn]=!e.habits[hn];saveEntry(e);render(true);break;
     case 'goHabits':state.tab='me';render();var el=document.getElementById('habits');if(el)el.scrollIntoView();break;
+    case 'ibToggleForm':state.ibForm=!state.ibForm;render(true);break;
+    case 'ibToggleHist':state.ibHist=!state.ibHist;render(true);break;
+    case 'ibSaveManual':
+      var dv=document.getElementById('ibDate').value, tv=document.getElementById('ibTime').value||'00:00';
+      var wEl=document.getElementById('ibf_weight'), wv=parseFloat(wEl.value);
+      var ibm=document.getElementById('ibMsg');
+      if(!dv||isNaN(wv)){if(ibm)ibm.textContent='測定日と体重を入れてください。';wEl.focus();break}
+      var row={ts:dv.replace(/-/g,'')+tv.replace(':','')+'00',date:dv,manual:true};
+      IB_METRICS.forEach(function(m){var v=parseFloat(document.getElementById('ibf_'+m[0]).value);if(!isNaN(v))row[m[0]]=v});
+      var cur=get('inbody')||{list:[]};
+      cur.list=cur.list.filter(function(r){return r.ts!==row.ts});cur.list.push(row);
+      cur.list.sort(function(a,b){return a.ts<b.ts?-1:1});
+      put('inbody',cur);state.ibForm=false;render(true);
+      var ibm2=document.getElementById('ibMsg');if(ibm2)ibm2.textContent=dv.replace(/-/g,'/')+' の測定を追加しました。';
+      break;
+    case 'ibDel':
+      if(b.dataset.sure){var c2=get('inbody');if(c2){c2.list=c2.list.filter(function(r){return r.ts!==b.dataset.v});if(c2.list.length)put('inbody',c2);else{delete docs.inbody;lsWrite()}render(true)}}
+      else{b.dataset.sure='1';b.textContent='本当に消す'}
+      break;
+    case 'setSex':p.sex=p.sex===b.dataset.v?'':b.dataset.v;put('profile',p);render(true);break;
+    case 'goRec':state.tab='rec';render();break;
+    case 'ibMetric':state.ibMetric=b.dataset.v;render(true);break;
+    case 'ibClear':
+      if(b.dataset.sure){delete docs.inbody;lsWrite();render(true);setStatus('InBodyのデータを消しました')}
+      else{b.dataset.sure='1';b.textContent='本当に消す（もう一度タップ）'}
+      break;
     case 'prevMonth':var d1=parse(state.month+'-01');d1.setMonth(d1.getMonth()-1);state.month=ymd(d1).slice(0,7);render(true);break;
     case 'nextMonth':var d2=parse(state.month+'-01');d2.setMonth(d2.getMonth()+1);state.month=ymd(d2).slice(0,7);render(true);break;
     case 'openDay':state.date=b.dataset.v;state.tab='today';render();break;
@@ -652,6 +918,14 @@ function boot(){
   document.addEventListener('click',onClick);
   document.addEventListener('input',onInput);
   document.addEventListener('change',function(ev){if(ev.target.dataset.photo){onPhotoPicked(ev.target);return}
+    if(ev.target.dataset.inbody){
+      var fi=ev.target.files&&ev.target.files[0];if(!fi)return;
+      fi.text().then(function(t){
+        var n=importInBody(t);render(true);
+        var mm=document.getElementById('ibMsg');if(mm)mm.textContent=n?n+'回分の測定を取り込みました。':'新しい測定はありませんでした。';
+      }).catch(function(){var mm=document.getElementById('ibMsg');if(mm)mm.textContent='このファイルは読み込めませんでした。InBodyアプリから書き出したCSVを選んでください。'});
+      return;
+    }
     if(ev.target.dataset.restore){
       var f=ev.target.files&&ev.target.files[0], msg=document.getElementById('bkMsg');if(!f)return;
       f.text().then(function(t){return restoreBackup(JSON.parse(t))}).then(function(){render(true);document.getElementById('bkMsg').textContent='復元しました。'},function(){msg.textContent='このファイルは読み込めませんでした。'});
