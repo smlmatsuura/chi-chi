@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<title>東京喰種 実戦メモ</title>
+<style>
+:root{--bg:#0f1b3d;--panel:#18295a;--panel2:#22377a;--line:#2f4690;--text:#eef2ff;--sub:#9fb0e0;--acc:#7fb2ff;--ok:#4cd39b;--ng:#ff6b7a;--warn:#ffc65c}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;font-size:15px}
+body{padding:env(safe-area-inset-top) 0 calc(64px + env(safe-area-inset-bottom))}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 12px 8px;border-bottom:1px solid var(--line)}
+.hrow{display:flex;gap:8px;align-items:center}
+.hrow input{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:7px 8px;font-size:15px;min-width:0}
+#machine{flex:1}#dai{width:70px;text-align:center}
+.stats{display:flex;gap:6px;margin-top:8px}
+.stat{flex:1;background:var(--panel);border-radius:8px;padding:5px 4px;text-align:center}
+.stat b{display:block;font-size:18px}.stat span{font-size:11px;color:var(--sub)}
+.stat.money b{font-size:15px}
+main{padding:10px 12px}
+.view{display:none}.view.on{display:block}
+.grow{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.grow label{color:var(--sub);font-size:13px;white-space:nowrap}
+#gnum::placeholder{font-size:13px;color:#6f80b8}
+#gnum{flex:1;font-size:22px;padding:8px 10px;background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:10px;text-align:right}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.btn{background:var(--panel2);border:none;color:var(--text);border-radius:10px;padding:12px 4px;font-size:14px;font-weight:600;line-height:1.25;cursor:pointer}
+.btn:active{transform:scale(.96);filter:brightness(1.3)}
+.btn.wide{grid-column:span 2}
+.btn.w3{grid-column:span 3}
+.btn.sub{background:var(--panel);color:var(--sub);font-weight:500}
+.btn.ok{background:#1f6b52}.btn.ng{background:#7a2c3a}.btn.mid{background:#6b5a1f}
+.toolbar{display:flex;gap:7px;margin:12px 0 8px}
+.toolbar .btn{flex:1;padding:9px 4px;font-size:13px}
+.log{background:#b7cdfa;color:#132050;border-radius:14px;padding:12px 14px;min-height:80px;font-size:15px;line-height:1.55}
+.log .ln{padding:3px 4px;border-radius:6px;cursor:pointer;word-break:break-all}
+.log .ln:active{background:rgba(0,0,0,.08)}
+.log .gap{height:12px}
+.log .empty{color:#53609a;font-size:13px}
+.log .title{font-weight:700;margin-bottom:6px}
+.card{background:var(--panel);border-radius:12px;padding:12px;margin-bottom:10px}
+.card h3{margin:0 0 8px;font-size:14px;color:var(--sub);font-weight:600}
+.big{font-size:30px;font-weight:700;text-align:center;margin:4px 0}
+.plus{color:var(--ok)}.minus{color:var(--ng)}
+.row{display:flex;gap:7px;flex-wrap:wrap}
+.row .btn{flex:1;min-width:64px;padding:10px 4px}
+.field{display:flex;align-items:center;gap:8px;margin-top:8px}
+.field label{width:84px;color:var(--sub);font-size:13px}
+.field input{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px;font-size:17px;text-align:right;min-width:0}
+.note{font-size:12px;color:var(--sub);margin-top:6px;line-height:1.5}
+.hist{display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+.hist:last-child{border-bottom:none}
+.hist .l small{display:block;color:var(--sub);font-size:12px}
+.hist.cur{background:rgba(127,178,255,.1);border-radius:8px}
+.mon{display:flex;justify-content:space-between;padding:6px 4px;font-size:14px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#0b1430;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+nav button{flex:1;background:none;border:none;color:var(--sub);padding:10px 0 12px;font-size:13px}
+nav button.on{color:var(--acc);font-weight:700}
+nav button i{display:block;font-style:normal;font-size:19px}
+/* sheet */
+#mask{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;z-index:10}
+#sheet{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-radius:16px 16px 0 0;padding:14px 14px calc(16px + env(safe-area-inset-bottom));z-index:11;transform:translateY(105%);transition:transform .2s;max-height:85vh;overflow:auto}
+#sheet.on{transform:none}
+#sheet h2{margin:0 0 4px;font-size:17px;display:flex;justify-content:space-between;align-items:center}
+#sheet h2 button{background:none;border:none;color:var(--sub);font-size:22px}
+.preview{background:#b7cdfa;color:#132050;border-radius:8px;padding:8px 10px;margin:8px 0;font-weight:600;min-height:38px}
+.grp{margin-top:10px}.grp .gl{font-size:12px;color:var(--sub);margin-bottom:5px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:18px;padding:8px 12px;font-size:14px}
+.chip.on{background:var(--acc);color:#0b1430;border-color:var(--acc);font-weight:700}
+.chip small{display:block;font-size:10px;opacity:.75;font-weight:400;margin-top:1px}
+.tag{background:var(--bg);border-radius:14px;padding:5px 10px;font-size:13px}.tag b{color:var(--warn);margin-left:4px}
+.ref td{padding:6px 4px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:top}.ref td:last-child{color:var(--warn);white-space:nowrap;text-align:right}.ref small{display:block;color:var(--sub);font-size:11px}.ref{width:100%;border-collapse:collapse}
+.refnav{position:sticky;top:var(--hh,108px);z-index:4;background:var(--bg);padding:6px 0 8px;flex-wrap:nowrap;overflow-x:auto}
+.refnav .chip{white-space:nowrap;font-size:13px;padding:6px 10px}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:4px}
+.rt{border-collapse:collapse;width:100%;font-size:13px}
+.rt th{background:var(--panel2);color:var(--sub);font-weight:600;padding:6px 5px;font-size:11px;white-space:nowrap;line-height:1.3}
+.rt td{border-bottom:1px solid var(--line);padding:7px 5px;vertical-align:top;line-height:1.45}
+.rt td.k{color:var(--text);font-weight:600}
+.st td,.st th{white-space:nowrap;text-align:center}.st td.k{position:sticky;left:0;background:var(--panel)}
+.st tr.s5 td{color:#5fe3a1}.st tr.s6 td{color:#ff8a96;font-weight:700}
+.mt td,.mt th{text-align:center;padding:6px 3px;white-space:nowrap}.mt td.gr{background:rgba(255,255,255,.07)}
+.h6{color:#ff8a96}.h4{color:#ffc65c}.hev{color:#7fb2ff}.hod{color:#e8e8e8}
+.rs{scroll-margin-top:150px}
+.legend{font-size:12px;color:var(--sub);line-height:2}
+.rare{border-top:1px solid var(--line);padding:10px 0 6px}
+.rh{display:flex;justify-content:space-between;align-items:baseline}.rh span{font-size:12px;color:var(--sub)}
+.reels{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.reel{display:flex;gap:2px;background:#fff;padding:3px;border-radius:6px}
+.rc{display:flex;flex-direction:column;gap:2px;background:#f2f2f2;border-radius:3px}
+.s{display:flex;align-items:center;justify-content:center;width:34px;height:22px;font-style:normal;font-size:14px;color:#222;line-height:1}
+.legend .s{display:inline-flex;width:30px;height:18px;font-size:11px;vertical-align:middle;background:#f2f2f2;border-radius:3px;margin-left:4px}
+.sR{background:#5ec5f5;color:#fff;border-radius:50%;width:24px;margin:0 5px;font-size:9px;font-weight:700}
+.sL{background:#111;color:#fff;font-size:10px;font-weight:700;border-radius:2px}
+.sK{color:#d0102a;font-weight:900;font-size:15px}.sx{font-size:11px;opacity:.75}
+.sA{color:#1a9e45;font-size:10px;font-weight:700}
+.chip.add{color:var(--sub);border-style:dashed}
+.sin{width:100%;margin-top:6px;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px;font-size:15px}
+.acts{display:flex;gap:8px;margin-top:14px}
+.acts .btn{flex:1;padding:13px 4px;font-size:15px}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#000c;color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;display:none;z-index:20}
+textarea.bk{width:100%;height:110px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;font-size:12px;padding:8px}
+</style>
+</head>
+<body>
+<header>
+  <div class="hrow">
+    <input id="machine" placeholder="機種名" value="東京喰種">
+    <input id="dai" placeholder="台番" inputmode="numeric">
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="sCz">0</b><span>CZ</span></div>
+    <div class="stat"><b id="sFail">0</b><span>失敗</span></div>
+    <div class="stat"><b id="sWin">0</b><span>成功</span></div>
+    <div class="stat"><b id="sKaku">0</b><span>赫眼</span></div>
+    <div class="stat money"><b id="sMoney">±0</b><span>収支</span></div>
+  </div>
+</header>
+
+<main>
+  <!-- 記録 -->
+  <section class="view on" id="v-rec">
+    <div class="grow"><label>G数</label><input id="gnum" inputmode="numeric" placeholder="（任意）次の記録の頭に付く"></div>
+    <div class="grid" id="btns"></div>
+    <div class="toolbar">
+      <button class="btn sub" id="bUndo">↩ 1つ戻す</button>
+      <button class="btn sub" id="bCopy">📋 テキストコピー</button>
+    </div>
+    <div class="card" id="hintsBox" style="display:none"></div>
+    <div class="log" id="log"></div>
+  </section>
+
+  <!-- 収支 -->
+  <section class="view" id="v-money">
+    <div class="card">
+      <h3>今回の収支</h3>
+      <div class="big" id="mBig">±0円</div>
+      <div class="note" id="mDetail" style="text-align:center"></div>
+    </div>
+    <div class="card">
+      <h3>投資（円）</h3>
+      <div class="big" id="mInv" style="font-size:24px">0円</div>
+      <div class="row">
+        <button class="btn" data-inv="1000">+1千</button>
+        <button class="btn" data-inv="5000">+5千</button>
+        <button class="btn" data-inv="10000">+1万</button>
+        <button class="btn sub" data-inv="-1000">−1千</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>回収</h3>
+      <div class="field"><label>回収枚数</label><input id="mOut" inputmode="numeric" placeholder="0"></div>
+      <div class="field"><label>交換率(円/枚)</label><input id="mRate" inputmode="decimal" placeholder="20"></div>
+      <div class="chips" style="margin-top:8px">
+        <button class="chip" data-rate="20">等価 20円</button>
+        <button class="chip" data-rate="18.18">5.5枚 18.2円</button>
+        <button class="chip" data-rate="17.86">5.6枚 17.9円</button>
+      </div>
+      <div class="field"><label>総G数</label><input id="mTotalG" inputmode="numeric" placeholder="（任意）"></div>
+      <div class="note">収支 ＝ 回収枚数 × 交換率 − 投資。交換率は前回の値を覚えておきます。</div>
+    </div>
+  </section>
+
+  <!-- 履歴 -->
+  <section class="view" id="v-ref"><div id="refNav" class="chips refnav"></div><div id="refBox"></div><div class="note">出典：P-TOWN、でちゃう、nana-press、アルテマの解析情報（2026年11月時点）。数値・示唆は各サイトで最新を確認してください。</div></section>
+
+  <section class="view" id="v-hist">
+    <button class="btn" style="width:100%;margin-bottom:10px;padding:13px" id="bNew">＋ 新しい実戦を始める</button>
+    <div class="card"><h3>月別収支</h3><div id="months"></div></div>
+    <div class="card"><h3>実戦一覧（タップで開く）</h3><div id="hlist"></div></div>
+    <div class="card">
+      <h3>バックアップ</h3>
+      <div class="row">
+        <button class="btn sub" id="bBkCopy">データをコピー</button>
+        <button class="btn sub" id="bBkLoad">貼り付けて復元</button>
+      </div>
+      <textarea class="bk" id="bkText" placeholder="復元するときはここにデータを貼り付けて「貼り付けて復元」"></textarea>
+      <div class="note">データはこのスマホのブラウザ内に保存されます。機種変更前やたまにコピーしてメモ帳などに残しておくと安心です。</div>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button class="on" data-v="rec"><i>✏️</i>記録</button>
+  <button data-v="money"><i>💴</i>収支</button>
+  <button data-v="hist"><i>📅</i>履歴</button>
+  <button data-v="ref"><i>📖</i>解析</button>
+</nav>
+
+<div id="mask"></div>
+<div id="sheet"></div>
+<div id="toast"></div>
+
+<script>
+// ===== 東京喰種 専用プリセット =====
+// C(表示, 意味のメモ, 設定示唆タグ)
+const C=(t,h,s,v,f)=>({t,h:h||"",s:s||"",v:v??t,f:f||""});
+const COL4=[C("🟦青","",""," 🟦"),C("🟩緑","",""," 🟩"),C("🟥赤","",""," 🟥"),C("🟣紫","",""," 🟣")].map(c=>({...c,v:c.v.trim()}));
+const GS=["50","100","150","200","250","300","350","400","450","500","550","600"].map(x=>C(x));
+const BUTTONS=[
+ {id:"zone",label:"ゾーン / CZ",type:"zone"},
+ {id:"letter",label:"✉️ 招待状",type:"form",fields:[
+   {k:"g",label:"出現G（50Gごと）",chips:GS,free:true,num:true},
+   {k:"txt",label:"文言（デフォルト／残りG示唆／設定示唆）",chips:[
+     C("今夜ディナー","示唆なし","","今夜ディナー","今夜ディナーを楽しもう"),
+     C("パーティ未定","示唆なし","","パーティ未定","パーティの時間は未定だ"),
+     C("最悪の事態には","600G否定","","最悪の事態には","心配しなくとも最悪の事態にはならないだろう"),
+     C("2時46分","残り200/400/600G","","2時46分","2時46分に下記の場所で待っている"),
+     C("1時35分","残り100/300/500G","","1時35分","1時35分に下記の場所で待っている"),
+     C("喰うか喰われるかは","200G以内 or 500G以上","","喰うか喰われるかは","喰うか喰われるかは君次第だ"),
+     C("3時まで","300G以内濃厚","","3時まで","3時までに僕のもとにきてくれ"),
+     C("2時まで","200G以内濃厚","","2時まで","2時までに僕のもとにきてくれ"),
+     C("今すぐ","100G以内濃厚","","今すぐ","今すぐ僕のもとにきてくれ"),
+     C("偶には","偶数示唆","偶数示唆","偶には","偶にはディナーでもどうだい？"),
+     C("不思議な香り","1否定（銀）","設定1否定","不思議な香り","不思議な香りだ…"),
+     C("活字中毒","2否定","設定2否定","活字中毒","君はなかなかの活字中毒らしいね"),
+     C("本は良いよね","3否定","設定3否定","本は良いよね","本は良いよね…"),
+     C("僕としたことが","4否定","設定4否定","僕としたことが","僕としたことがすまない"),
+     C("存分に","4以上濃厚（金）","設定4以上","存分に","存分に楽しもうじゃないか"),
+     C("特別な夜","6濃厚（虹）","設定6","特別な夜","特別な夜を楽しもうじゃないか")],free:true},
+   {k:"col",label:"文字色",chips:[C("⬜白","デフォルト","","⬜"),C("🟦青","","","🟦"),C("🟩緑","","","🟩"),C("🟥赤","","","🟥"),C("🟣紫","","","🟣"),C("🩶銀","","","🩶"),C("🟨金","","","🟨"),C("🌈虹","","","🌈")]}],
+   fmt:v=>`${v.g||""}✉️${v.txt||""}${v.col||""}`},
+ {id:"suika",label:"🍉 スイカ",type:"form",fields:[{k:"pt",label:"加算",chips:[C("10"),C("100"),C("MAX")]}],fmt:v=>`🍉${v.pt||""}`,quick:true},
+ {id:"kaku",label:"赫眼",type:"instant",text:"赫眼",mark:"kaku"},
+ {id:"seishin",label:"精神世界",type:"form",fields:[
+   {k:"g",label:"継続",chips:[C("10G"),C("20G"),C("30G")],free:true},
+   {k:"face",label:"メモ（任意）",chips:[C("☺️"),C("😐"),C("🔥")]}],
+   fmt:v=>`精神世界 ${v.g||""}${v.face||""}`},
+ {id:"rare",label:"レア役",type:"form",fields:[{k:"r",label:"小役",chips:[C("弱チェ"),C("強チェ"),C("チャンス目"),C("確定チェリー","中段チェリー"),C("下段リプレイ","→赫眼"),C("斜めベル"),C("喰図柄揃い")],free:true}],fmt:v=>`${v.r||""}`,quick:true},
+ {id:"cherry",label:"中段🍒\n(確定)",type:"instant",text:"中段チェリー🍒"},
+ {id:"battle",label:"喰種対決",type:"form",fields:[
+   {k:"op",label:"対戦相手",chips:[C("鯱"),C("絢都"),C("ヤモリ"),C("特等ら","レベルC以上"),C("亜門","レベルD濃厚"),C("有馬")]},
+   {k:"r",label:"結果",chips:[C("勝利"),C("敗北")]}],
+   fmt:v=>`対決 ${v.op||""} ${v.r||""}`},
+ {id:"at",label:"AT結果",type:"form",fields:[
+   {k:"r",label:"結果",chips:[C("駆け抜け","失敗カウント"),C("BITES"),C("超BITES"),C("極BITES"),C("百足覚醒"),C("隻眼の梟"),C("有馬ジャッジメント"),C("CCGの死神"),C("裏AT"),C("ロングフリーズ")]},
+   {k:"n",label:"獲得枚数",chips:[C("300"),C("500"),C("1000"),C("2000")],free:true,num:true},
+   {k:"ov",label:"枚数表示",chips:[C("456 OVER","4以上","設定4以上"),C("666 OVER","6濃厚","設定6"),C("1000-7 OVER","6濃厚","設定6")]}],
+   fmt:v=>[v.r,v.n?v.n+"枚":"",v.ov].filter(Boolean).join(" "),markFn:v=>v.r==="駆け抜け"?"fail":null},
+ {id:"endscr",label:"AT終了画面",type:"form",fields:[{k:"c",label:"キャラ",chips:[
+   C("金木","デフォルト"),C("間戸&亜門","奇数示唆","奇数示唆"),C("篠原&重造","偶数示唆","偶数示唆"),C("リゼ","2以上","設定2以上"),
+   C("笛口親子","高設定(弱)","高設定示唆(弱)"),C("四方&イトリ&ウタ","高設定(強)","高設定示唆(強)"),C("金木&トーカ","4以上濃厚","設定4以上"),C("あんていく全員","6濃厚","設定6")]}],
+   fmt:v=>`終了画面 ${v.c||""}`,quick:true},
+ {id:"czcard",label:"CZ終了\n画面",type:"form",fields:[
+   {k:"c",label:"キャラ（枠の色も自動で付きます）",chips:[C("金木","デフォルト","","金木"),C("トーカ","B以上期待🟦","","トーカ🟦"),C("ひなみ","B以上期待🟦","","ひなみ🟦"),
+     C("亜門","B以上濃厚🟡","","亜門🟡"),C("真戸呉緒","C以上濃厚🟡","","真戸呉緒🟡"),C("金木(赫眼)","チャンス以上🟩","","金木(赫眼)🟩"),C("トーカ(赫眼)","チャンス以上🟩","","トーカ(赫眼)🟩"),
+     C("月山","天国準備以上🟥","","月山🟥"),C("リゼ","天国濃厚🟣","","リゼ🟣"),C("重造","偶数濃厚","偶数濃厚"),C("梟","4以上濃厚","設定4以上"),C("有馬","6濃厚","設定6")],free:true}],
+   fmt:v=>`終了カード ${v.c||""}`,quick:true},
+ {id:"edcard",label:"ED中\nカード",type:"form",excl:true,fields:[
+   {k:"c",label:"⬜ 白カード（奇数）",chips:[...["金木","トーカ","ひなみ","ヒデ","西尾","月山"].map(x=>C(x,"弱","奇数示唆(弱)","⬜"+x)),...["芳村","四方","ウタ","イトリ","古間","入見"].map(x=>C(x,"強","奇数示唆(強)","⬜"+x))]},
+   {k:"c",label:"🟦 青カード（偶数）",chips:[...["金木","トーカ","ひなみ","ナキ","西尾","月山"].map(x=>C(x,"弱","偶数示唆(弱)","🟦"+x)),...["亜門","篠原","滝澤","真戸暁","真戸呉緒","丸手"].map(x=>C(x,"強","偶数示唆(強)","🟦"+x))]},
+   {k:"c",label:"🟥 赤カード（高設定）",chips:[...["金木","トーカ","ヤモリ","絢都"].map(x=>C(x,"弱","高設定示唆(弱)","🟥"+x)),...["鯱","亜門","篠原","重造"].map(x=>C(x,"強","高設定示唆(強)","🟥"+x))]},
+   {k:"c",label:"🟫 銅カード（否定）",chips:[C("重造","1否定","設定1否定","🟫重造"),C("高槻泉","2否定","設定2否定","🟫高槻泉"),C("梟","3否定","設定3否定","🟫梟"),C("エト","4否定","設定4否定","🟫エト")]},
+   {k:"c",label:"✨ 銀・金・虹",chips:[C("金木(銀)","3以上濃厚","設定3以上","🩶金木"),C("リゼ(金)","4以上濃厚","設定4以上","🟨リゼ"),C("隻眼の梟(金)","5以上濃厚","設定5以上","🟨隻眼の梟"),C("有馬(虹)","6濃厚","設定6","🌈有馬")]}],
+   fmt:v=>`EDカード ${v.c||""}`,quick:true},
+ {id:"eye",label:"アイ\nキャッチ",type:"form",fields:[{k:"c",label:"キャラ",chips:[
+   C("金木","デフォルト"),C("トーカ","B以上期待"),C("ひなみ","C以上期待"),C("月山","本前兆期待"),C("リゼ","本前兆大チャンス"),
+   C("金木(喰種)","100G以内"),C("トーカ(喰種)","100G以内"),C("ひなみ(喰種)","100G以内"),C("月山(喰種)","100G以内"),C("リゼ(喰種)","復活濃厚")],free:true}],
+   fmt:v=>`アイキャッチ${v.c||""}`,quick:true},
+ {id:"trophy",label:"🏆 トロフィー",type:"form",fields:[{k:"c",label:"色",chips:[
+   C("黒","次回トロフィー"),C("銅","2以上","設定2以上"),C("銀","3以上","設定3以上"),C("金","4以上","設定4以上"),C("喰種柄","5以上","設定5以上"),C("虹","6濃厚","設定6")]}],
+   fmt:v=>`トロフィー${v.c||""}`,quick:true},
+ {id:"epi",label:"エピボ",type:"instant",text:"エピボ",mark:"win"},
+ {id:"back",label:"引き戻し",type:"instant",text:"引き戻し",mark:"win"},
+ {id:"memo",label:"📝 メモ",type:"memo"},
+ {id:"sep",label:"── 区切り（空行） ──",type:"sep",cls:"wide sub"},
+];
+const ZONES=["50","100","150","200","250","300","400","500","600"];
+const CZS=["レミニセンス","大喰いの利世","利世昇格","エピボ","直撃AT"];
+
+// ===== 保存 =====
+const KEY="slotmemo_v1";
+let S;
+function load(){try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+ if(!S||!S.sessions){S={sessions:[],cur:null,learn:{},rate:20}}
+ if(!cur())newSession();}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function cur(){return S.sessions.find(s=>s.id===S.cur)}
+function newSession(){
+ const last=S.sessions[S.sessions.length-1];
+ const s={id:Date.now().toString(36),date:today(),machine:last?last.machine:"東京喰種",dai:"",inv:0,out:"",rate:S.rate||20,totalG:"",entries:[]};
+ S.sessions.push(s);S.cur=s.id;save();}
+function today(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`}
+
+// ===== 番号 =====
+const CIR="①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
+const BCIR="❶❷❸❹❺❻❼❽❾❿⓫⓬⓭⓮⓯⓰⓱⓲⓳⓴";
+const num=(n,set)=>n<=20?set[n-1]:`(${n})`;
+function counts(s){let f=0,k=0,w=0,cz=0;s.entries.forEach(e=>{if(e.mark==="fail")f++;if(e.mark==="kaku")k++;if(e.mark==="win")w++;if(e.cz)cz++});return{f,k,w,cz}}
+function tally(s){const t={};s.entries.forEach(e=>(e.hints||[]).forEach(h=>t[h]=(t[h]||0)+1));return t}
+function lines(s){let f=0,k=0;return s.entries.map(e=>{if(e.kind==="sep")return{e,out:null};let t=e.text;
+ if(e.mark==="fail"){f++;t+=num(f,CIR)}if(e.mark==="kaku"){k++;t+=num(k,BCIR)}
+ return{e,out:(e.g?e.g+" ":"")+t}})}
+function money(s){const out=parseFloat(s.out)||0,r=parseFloat(s.rate)||0;return Math.round(out*r-(s.inv||0))}
+const yen=n=>(n>0?"+":n<0?"−":"±")+Math.abs(n).toLocaleString()+"円";
+
+// ===== 記録 =====
+function add(text,opt={}){const s=cur();const gi=document.getElementById("gnum");
+ s.entries.push({id:Math.random().toString(36).slice(2),text,g:gi.value.trim(),mark:opt.mark||null,kind:opt.kind||"ev",hints:opt.hints||[],cz:opt.cz||0,at:Date.now()});
+ gi.value="";save();render();toast(text||"区切り");}
+
+// ===== 描画 =====
+function render(){const s=cur();
+ document.getElementById("machine").value=s.machine||"";document.getElementById("dai").value=s.dai||"";
+ const c=counts(s),m=money(s);
+ sFail.textContent=c.f;sCz.textContent=c.cz;
+ const T=tally(s),tk=Object.keys(T);hintsBox.style.display=tk.length?"block":"none";hintsBox.innerHTML=`<h3>設定示唆</h3><div class="chips">${tk.map(k=>`<span class="tag">${esc(k)}<b>×${T[k]}</b></span>`).join("")}</div>`;sWin.textContent=c.w;sKaku.textContent=c.k;
+ sMoney.textContent=yen(m);sMoney.className=m>0?"plus":m<0?"minus":"";
+ // log
+ const L=lines(s);let h=`<div class="title">${esc((s.machine||"")+(s.dai||""))}　<span style="font-weight:400;font-size:12px">${s.date}</span></div>`;
+ if(!L.length)h+=`<div class="empty">ボタンを押すとここに記録されます。行をタップで修正・削除できます。</div>`;
+ L.forEach(x=>{h+=x.out===null?`<div class="gap ln" data-id="${x.e.id}"></div>`:`<div class="ln" data-id="${x.e.id}">${esc(x.out)}</div>`});
+ log.innerHTML=h;
+ // money view
+ mBig.textContent=yen(m);mBig.className="big "+(m>0?"plus":m<0?"minus":"");
+ mInv.textContent=(s.inv||0).toLocaleString()+"円";
+ mOut.value=s.out||"";mRate.value=s.rate||"";mTotalG.value=s.totalG||"";
+ const out=parseFloat(s.out)||0;mDetail.textContent=`回収 ${out.toLocaleString()}枚 × ${s.rate||0}円 ＝ ${Math.round(out*(parseFloat(s.rate)||0)).toLocaleString()}円 ／ 投資 ${(s.inv||0).toLocaleString()}円`;
+ document.querySelectorAll("[data-rate]").forEach(b=>b.classList.toggle("on",String(s.rate)===b.dataset.rate));
+ renderHist();}
+function renderHist(){
+ const list=[...S.sessions].sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id));
+ hlist.innerHTML=list.map(s=>{const m=money(s);return `<div class="hist ${s.id===S.cur?"cur":""}" data-sid="${s.id}"><div class="l">${esc((s.machine||"(機種未入力)")+" "+(s.dai||""))}<small>${s.date}・記録${s.entries.filter(e=>e.kind!=="sep").length}件</small></div><b class="${m>0?"plus":m<0?"minus":""}">${yen(m)}</b></div>`}).join("")||`<div class="note">まだありません</div>`;
+ const mon={};let tot=0;S.sessions.forEach(s=>{const k=s.date.slice(0,7);const m=money(s);mon[k]=(mon[k]||0)+m;tot+=m});
+ months.innerHTML=Object.keys(mon).sort().reverse().map(k=>`<div class="mon"><span>${k.replace("-","年")}月</span><b class="${mon[k]>0?"plus":mon[k]<0?"minus":""}">${yen(mon[k])}</b></div>`).join("")+`<div class="mon" style="border-top:1px solid var(--line);margin-top:4px;padding-top:8px"><span>通算</span><b class="${tot>0?"plus":tot<0?"minus":""}">${yen(tot)}</b></div>`;}
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// ボタン
+btns.innerHTML=BUTTONS.map(b=>`<button class="btn ${b.cls||""} ${b.type==="zone"?"wide":""}" data-b="${b.id}">${b.label.replace("\n","<br>")}</button>`).join("");
+btns.onclick=e=>{const el=e.target.closest("[data-b]");if(!el)return;const b=BUTTONS.find(x=>x.id===el.dataset.b);
+ if(b.type==="instant")add(b.text,{mark:b.mark});
+ else if(b.type==="sep")add("",{kind:"sep"});
+ else if(b.type==="zone")openZone();
+ else if(b.type==="memo")openMemo();
+ else openForm(b);};
+
+// ===== シート =====
+function openSheet(html){sheet.innerHTML=html;sheet.classList.add("on");mask.style.display="block"}
+function closeSheet(){sheet.classList.remove("on");mask.style.display="none"}
+mask.onclick=closeSheet;
+function learned(key,base){const l=S.learn[key]||[];return [...base,...l.filter(x=>!base.includes(x))]}
+function learn(key,val,base){if(!val||base.includes(val))return;S.learn[key]=S.learn[key]||[];if(!S.learn[key].includes(val))S.learn[key].push(val);save()}
+function gHint(){const g=gnum.value.trim();return g?g+" ":""}
+
+function openZone(){let z="",tr="レミニセンス";
+ const txt=()=>`${z?z+"ゾーン ":""}${tr}`;
+ openSheet(`<h2>ゾーン / CZ<button onclick="closeSheet()">×</button></h2>
+ <div class="preview" id="pv"></div>
+ <div class="grp"><div class="gl">ゾーン（前兆G・なしでもOK）</div><div class="chips" id="cz">${ZONES.map(v=>`<button class="chip" data-v="${v}">${v}</button>`).join("")}<button class="chip add" data-v="?">＋入力</button></div></div>
+ <div class="grp"><div class="gl">CZ</div><div class="chips" id="ct">${CZS.map(v=>`<button class="chip ${v===tr?"on":""}" data-v="${esc(v)}">${esc(v)}</button>`).join("")}</div></div>
+ <div class="acts"><button class="btn ok" data-r="成功">成功</button><button class="btn ng" data-r="失敗">失敗</button></div>`);
+ const pv=()=>{document.getElementById("pv").textContent=gHint()+txt()+" …"};pv();
+ cz.onclick=e=>{const c=e.target.closest(".chip");if(!c)return;
+   if(c.dataset.v==="?"){askInline(cz,"ゾーン（例 350）",x=>{z=x;cz.querySelectorAll(".chip").forEach(k=>k.classList.remove("on"));pv()},true);return}
+   z=c.classList.contains("on")?"":c.dataset.v;cz.querySelectorAll(".chip").forEach(k=>k.classList.toggle("on",k===c&&z!==""));pv()};
+ ct.onclick=e=>{const c=e.target.closest(".chip");if(!c)return;tr=c.dataset.v;ct.querySelectorAll(".chip").forEach(k=>k.classList.toggle("on",k===c));pv()};
+ sheet.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>{const r=b.dataset.r;
+   add(`${txt()} ${r}`,{mark:r==="成功"?"win":"fail",cz:1});closeSheet()});}
+
+function askInline(container,ph,cb,num){if(container.parentNode.querySelector(".sin"))return;
+ const i=document.createElement("input");i.className="sin";i.placeholder=ph+"（入力して決定）";if(num)i.inputMode="numeric";
+ const ok=document.createElement("button");ok.className="chip on";ok.textContent="決定";ok.style.marginTop="6px";
+ container.after(i);i.after(ok);i.focus();ok.onclick=()=>{const v=i.value.trim();if(v)cb(v);i.remove();ok.remove()};}
+
+function openForm(b){const v={},sv={};
+ const fieldsHtml=b.fields.map((f,fi)=>{const extra=(S.learn[b.id+"_"+f.k]||[]).filter(x=>!f.chips.some(c=>c.v===x)).map(x=>C(x));
+  const chips=[...f.chips,...extra];
+  return `<div class="grp"><div class="gl">${f.label}</div><div class="chips" data-f="${fi}">${chips.map(c=>`<button class="chip" data-v="${esc(c.v)}" data-s="${esc(c.s)}">${esc(c.t)}${c.h?`<small>${esc(c.h)}</small>`:""}</button>`).join("")}${f.free?`<button class="chip add" data-v="+">＋入力</button>`:""}</div></div>`}).join("");
+ openSheet(`<h2>${b.label.replace("\n","")}<button onclick="closeSheet()">×</button></h2><div class="preview" id="pv"></div>${fieldsHtml}
+ <div class="acts"><button class="btn sub" onclick="closeSheet()">やめる</button><button class="btn ok" id="go">記録する</button></div>`);
+ const pv=()=>{document.getElementById("pv").textContent=gHint()+b.fmt(v)};pv();
+ const done=()=>{const tags=Object.values(sv).filter(Boolean);const vv={...v,_s:tags};
+   add(b.fmt(v).trim(),{mark:b.markFn?b.markFn(v):null,hints:b.sFn?b.sFn(vv):tags});closeSheet()};
+ sheet.querySelectorAll("[data-f]").forEach(box=>{const f=b.fields[box.dataset.f];
+  box.onclick=e=>{const c=e.target.closest(".chip");if(!c)return;
+   if(c.dataset.v==="+"){askInline(box,f.label,x=>{v[f.k]=x;sv[f.k]="";if(!f.num)learn(b.id+"_"+f.k,x,[]);
+     const nc=document.createElement("button");nc.className="chip";nc.dataset.v=x;nc.dataset.s="";nc.textContent=x;box.insertBefore(nc,c);
+     box.querySelectorAll(".chip").forEach(k=>k.classList.toggle("on",k===nc));pv()},f.num);return}
+   if(c.classList.contains("on")){c.classList.remove("on");delete v[f.k];delete sv[f.k]}
+   else{const scope=b.excl?sheet:box;scope.querySelectorAll(".chip").forEach(k=>k.classList.toggle("on",k===c));v[f.k]=c.dataset.v;sv[f.k]=c.dataset.s}
+   pv();if(b.quick&&(b.fields.length===1||b.excl)&&v[f.k])done()}});
+ go.onclick=done;}
+function openMemo(){openSheet(`<h2>📝 メモ<button onclick="closeSheet()">×</button></h2>
+ <input class="sin" id="mt" placeholder="自由に入力（例：32引き戻し、設定示唆 など）">
+ <div class="acts"><button class="btn sub" onclick="closeSheet()">やめる</button><button class="btn ok" id="go">記録する</button></div>`);
+ setTimeout(()=>mt.focus(),150);go.onclick=()=>{const t=mt.value.trim();if(t)add(t);closeSheet()};}
+
+// 行の修正
+log.onclick=e=>{const ln=e.target.closest(".ln");if(!ln)return;const s=cur();const en=s.entries.find(x=>x.id===ln.dataset.id);if(!en)return;
+ const isSep=en.kind==="sep";
+ openSheet(`<h2>${isSep?"区切り":"記録を修正"}<button onclick="closeSheet()">×</button></h2>
+ ${isSep?"":`<div class="field"><label>G数</label><input id="eg" inputmode="numeric" value="${esc(en.g||"")}"></div>
+ <input class="sin" id="et" value="${esc(en.text)}">
+ <div class="grp"><div class="gl">カウント</div><div class="chips" id="em">
+  ${[["","なし"],["win","成功"],["fail","失敗"],["kaku","赫眼"]].map(m=>`<button class="chip ${String(en.mark||"")===m[0]?"on":""}" data-m="${m[0]}">${m[1]}</button>`).join("")}</div></div>
+ <div class="note">①②や❶❷の番号は自動で振り直されます。</div>`}
+ <div class="acts"><button class="btn ng" id="del">削除</button>${isSep?"":`<button class="btn sub" id="ins">この上に区切り</button><button class="btn ok" id="sv">保存</button>`}</div>`);
+ let mk=en.mark||"";
+ if(!isSep){em.onclick=ev=>{const c=ev.target.closest(".chip");if(!c)return;mk=c.dataset.m;em.querySelectorAll(".chip").forEach(k=>k.classList.toggle("on",k===c))};
+  sv.onclick=()=>{en.text=et.value.trim();en.g=eg.value.trim();en.mark=mk||null;save();render();closeSheet()};
+  ins.onclick=()=>{const i=s.entries.indexOf(en);s.entries.splice(i,0,{id:Math.random().toString(36).slice(2),text:"",kind:"sep",mark:null,g:""});save();render();closeSheet()}}
+ del.onclick=()=>{s.entries=s.entries.filter(x=>x!==en);save();render();closeSheet();toast("削除しました")};};
+
+bUndo.onclick=()=>{const s=cur();if(!s.entries.length)return;const e=s.entries.pop();save();render();toast("戻しました："+(e.text||"区切り"))};
+bCopy.onclick=()=>{const s=cur();const L=lines(s);let t=(s.machine||"")+(s.dai||"")+"\n\n";
+ t+=L.map(x=>x.out===null?"":x.out).join("\n").replace(/\n{3,}/g,"\n\n");
+ const T=tally(s);if(Object.keys(T).length)t+="\n\n設定示唆："+Object.keys(T).map(k=>k+(T[k]>1?"×"+T[k]:"")).join("、");
+ const m=money(s);if(s.inv||s.out)t+=`\n\n投資 ${(s.inv||0).toLocaleString()}円／回収 ${(parseFloat(s.out)||0).toLocaleString()}枚\n収支 ${yen(m)}`;
+ copy(t.trim(),"コピーしました。LINEなどに貼り付けできます");};
+function copy(t,msg){(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast(msg)).catch(()=>{
+ const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");toast(msg)}catch(e){toast("コピーできませんでした")}ta.remove()})}
+
+// ヘッダ入力
+machine.oninput=()=>{cur().machine=machine.value;save();renderHist()};
+dai.oninput=()=>{cur().dai=dai.value;save();renderHist()};
+// 収支
+document.querySelectorAll("[data-inv]").forEach(b=>b.onclick=()=>{const s=cur();s.inv=Math.max(0,(s.inv||0)+ +b.dataset.inv);save();render()});
+mOut.oninput=()=>{cur().out=mOut.value;save();updMoney()};
+mRate.oninput=()=>{cur().rate=mRate.value;S.rate=mRate.value;save();updMoney()};
+mTotalG.oninput=()=>{cur().totalG=mTotalG.value;save()};
+document.querySelectorAll("[data-rate]").forEach(b=>b.onclick=()=>{cur().rate=b.dataset.rate;S.rate=b.dataset.rate;save();render()});
+function updMoney(){const s=cur(),m=money(s);sMoney.textContent=yen(m);sMoney.className=m>0?"plus":m<0?"minus":"";mBig.textContent=yen(m);mBig.className="big "+(m>0?"plus":m<0?"minus":"");
+ const out=parseFloat(s.out)||0;mDetail.textContent=`回収 ${out.toLocaleString()}枚 × ${s.rate||0}円 ＝ ${Math.round(out*(parseFloat(s.rate)||0)).toLocaleString()}円 ／ 投資 ${(s.inv||0).toLocaleString()}円`;
+ document.querySelectorAll("[data-rate]").forEach(b=>b.classList.toggle("on",String(s.rate)===b.dataset.rate));renderHist()}
+// 履歴
+bNew.onclick=()=>{newSession();render();show("rec");toast("新しい実戦を始めました")};
+hlist.onclick=e=>{const h=e.target.closest("[data-sid]");if(!h)return;const s=S.sessions.find(x=>x.id===h.dataset.sid);
+ openSheet(`<h2>${esc(s.machine||"")} ${esc(s.dai||"")}<button onclick="closeSheet()">×</button></h2><div class="note">${s.date}／収支 ${yen(money(s))}</div>
+ <div class="field"><label>日付</label><input id="hd" type="date" value="${s.date}" style="text-align:left"></div>
+ <div class="acts"><button class="btn ng" id="hdel">削除</button><button class="btn ok" id="hopen">この実戦を開く</button></div>`);
+ hd.onchange=()=>{s.date=hd.value||s.date;save();render()};
+ hopen.onclick=()=>{S.cur=s.id;save();render();closeSheet();show("rec")};
+ hdel.onclick=()=>{if(hdel.dataset.c!=="1"){hdel.dataset.c="1";hdel.textContent="本当に削除";return}
+  S.sessions=S.sessions.filter(x=>x!==s);if(S.cur===s.id){S.cur=null;if(S.sessions.length)S.cur=S.sessions[S.sessions.length-1].id;else newSession()}save();render();closeSheet()};};
+bBkCopy.onclick=()=>copy(JSON.stringify(S),"データをコピーしました");
+bBkLoad.onclick=()=>{try{const d=JSON.parse(bkText.value);if(!d.sessions)throw 0;S=d;if(!cur())newSession();save();render();bkText.value="";toast("復元しました")}catch(e){toast("データの形式が正しくありません")}};
+// タブ
+function show(v){document.querySelectorAll(".view").forEach(x=>x.classList.toggle("on",x.id==="v-"+v));document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));scrollTo(0,0)}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>show(b.dataset.v));
+let tt;function toast(m){toast_el.textContent=m;toast_el.style.display="block";clearTimeout(tt);tt=setTimeout(()=>toast_el.style.display="none",1400)}
+const toast_el=document.getElementById("toast");
+
+// ===== 解析まとめ =====
+const SYM={R:'<i class="s sR">リプ</i>',L:'<i class="s sL">喰種</i>',C:'<i class="s">🍒</i>',K:'<i class="s sK">赤</i>',W:'<i class="s">🍉</i>',B:'<i class="s">🔔</i>',
+ A:'<i class="s sA">ANY</i>',H:'<i class="s sA">ハズレ</i>',x:'<i class="s sK sx">赤✕</i>',".":'<i class="s e"></i>'};
+const reel=p=>`<div class="reel">${p.map(c=>`<div class="rc">${[...c].map(t=>SYM[t]).join("")}</div>`).join("")}</div>`;
+const RARE=[
+ ["弱チェリー","1/70.3",[["RLC",".K.","x.."]],"右リール上段に赤が止まらない。内部状態の昇格抽選・低確率でCZ当選"],
+ ["強チェリー","1/356.2",[["RLC",".K.","K.."],["RLC","..K","..K"],["CWB",".K.","..K"]],"3パターン。CZ中なら成功濃厚"],
+ ["確定チェリー","1/16384",[["RLC",".L.",".L."],["LCW",".A.",".A."]],"左中段チェリー＝確定。通常時は約1/6でロングフリーズ"],
+ ["チャンス目","1/585.1",[["BRL",".R.",".W."],["BRL",".K.",".K."],["WBR",".H.",".H."]],"3つ目は中リールでスイカを狙ってハズレた時。CZ中なら成功濃厚"],
+ ["スイカ","1/100.5",[["WBR",".W.","..W"]],"規定G数を減算：10G（約74%）／100G（約25%）／MAX（約1%）"],
+ ["下段リプレイ","—",[["WBR","..R","..R"]],"赫眼状態（チェリー高確・10/20/30/50G）へ。出現率に設定差あり"],
+];
+const SET=[["設定","出率","AT","CZ","弱チェCZ<br>低確","弱チェCZ<br>高確","レミニ<br>センス","大喰いの<br>利世","エピボ","100G内<br>CZ引戻し","直撃AT","初当り<br>裏AT","赫眼<br>リプレイ"],
+ ["1","97.5%","1/394.4","1/262.6","0.27%","0.59%","1/300.5","1/2079.1","1/6620.2","19.6%","1/28460.6","1.10%","1/1260.3"],
+ ["2","99.0%","1/380.5","1/255.6","0.29%","0.63%","1/295.1","1/1906.5","1/5879.7","21.0%","1/24453.5","1.32%","1/1213.6"],
+ ["3","101.6%","1/357.0","1/246.5","0.31%","0.69%","1/287.6","1/1722.8","1/5114.5","23.2%","1/18093.0","1.63%","1/1170.3"],
+ ["4","105.6%","1/325.9","1/233.1","0.33%","0.73%","1/276.7","1/1478.9","1/4062.5","26.4%","1/12019.5","2.19%","1/1129.9"],
+ ["5","110.3%","1/291.2","1/216.4","0.38%","0.83%","1/262.7","1/1226.6","1/3166.7","32.0%","1/8615.4","2.85%","1/1092.3"],
+ ["6","114.9%","1/261.3","1/203.7","0.43%","0.95%","1/251.2","1/1074.9","1/2639.5","36.0%","1/7036.8","3.32%","1/1024.0"]];
+const MODE_G=["50","100","150","200","250","300","350","400","450","500","550","600"];
+const MODE=[["通常A",{200:"○",400:"○",600:"☆"}],["通常B",{100:"○",300:"○",500:"◎",600:"☆"}],["通常C",{100:"○",200:"○",300:"○",400:"○",500:"☆"},500],
+ ["チャンス",{50:"△",100:"○",150:"△",200:"○",250:"△",300:"◎",600:"☆"}],["天国準備",{50:"△",100:"○",150:"○",200:"◎",300:"☆"},300],["天国",{50:"○",100:"☆"},100]];
+const ZENCHO=[["50G","基本","CZ以上のチャンス（外れても天国濃厚）","チャンス以上濃厚"],["100G","—","基本","天国準備濃厚"],["150G","基本","CZ以上濃厚","通常B以上濃厚"],
+ ["200G","天国準備濃厚（300G天井）","基本","通常B以上期待"],["250G","基本","CZ以上濃厚","通常C以上濃厚"],["300G","—","基本","チャンス濃厚"],
+ ["400G","通常C濃厚（500G天井）","基本","基本"],["500G","—","基本","チャンス濃厚"],["600G","—","CZ以上濃厚","CZ以上濃厚"]];
+const T=(rows,head)=>`<div class="tw"><table class="rt">${head?`<tr>${head.map(x=>`<th>${x}</th>`).join("")}</tr>`:""}${rows.map(r=>`<tr>${r.map((c,i)=>`<td${i?"":' class="k"'}>${c}</td>`).join("")}</tr>`).join("")}</table></div>`;
+const hot=t=>/6濃厚|設定6/.test(t)?`<b class="h6">${t}</b>`:/4以上|5以上|3以上/.test(t)?`<b class="h4">${t}</b>`:/偶数/.test(t)?`<b class="hev">${t}</b>`:/奇数/.test(t)?`<b class="hod">${t}</b>`:t;
+const SEC=[];
+function sec(id,title,html){SEC.push([id,title]);return `<div class="card rs" id="r-${id}"><h3>${title}</h3>${html}</div>`}
+function renderRef(){let h="";SEC.length=0;
+ h+=sec("basic","基本スペック",T([
+  ["天井","AT間1200G（CZ・AT当選で恩恵）"],["CZ天井","AT・CZ間 600G+α（設定変更後は200G+α）"],["CZ","レミニセンス（8G・約52%）<br>大喰いの利世（8G・約75%）<br>エピソードボーナス（100枚・AT濃厚）"],
+  ["AT","東京喰種咬：純増約4.0枚/G・初期150枚の差枚数管理"],["ヤメ時","有馬ジャッジメント失敗後は100Gゾーンで必ずCZ → 即ヤメ注意"],["50枚あたり","約31G"]]));
+ h+=sec("set","設定差",`<div class="note">横にスクロールできます</div>`+`<div class="tw"><table class="rt st">${SET.map((r,i)=>`<tr class="${i==5?"s5":i==6?"s6":""}">${r.map((c,j)=>i?`<td${j?"":' class="k"'}>${c}</td>`:`<th>${c}</th>`).join("")}</tr>`).join("")}</table></div>
+  <div class="note">精神世界30Gは設定1と6で約4倍の差。AT引き戻しも設定差あり（7.81%〜15.23%）。</div>`);
+ h+=sec("rare","レア役（停止形）",`<div class="legend">${SYM.R}リプレイ ${SYM.L}ロゴ ${SYM.K}赤図柄 ${SYM.C}🍒 ${SYM.W}🍉 ${SYM.B}🔔　左から 左・中・右リール</div>`+
+  RARE.map(r=>`<div class="rare"><div class="rh"><b>${r[0]}</b><span>設定1 ${r[1]}</span></div><div class="reels">${r[2].map(reel).join("")}</div><div class="note">${r[3]}</div></div>`).join("")+
+  T([["リプレイ","1/7.3"],["斜めベル","1/131.1"],["弱チェリー","1/70.3"],["スイカ","1/100.5"],["チャンス目","1/585.1"],["強チェリー","1/356.2"],["確定チェリー","1/16384"],["レア役合算","1/31.5"]],["小役","確率（設定1）"]));
+ h+=sec("mode","モード別ゾーン",`<div class="tw"><table class="rt mt"><tr><th>モード</th>${MODE_G.map(g=>`<th>${g}</th>`).join("")}</tr>${MODE.map(m=>`<tr><td class="k">${m[0]}</td>${MODE_G.map(g=>`<td class="${m[2]&&+g>m[2]?"gr":""}">${m[1][g]||""}</td>`).join("")}</tr>`).join("")}</table></div>
+  <div class="note">☆＝天井　◎＝本命　○＝当選あり　△＝チャンス。グレーは到達しない範囲。モード示唆は合わせて判断（天井まで行った例もあり）。</div>`);
+ h+=sec("zencho","前兆発生タイミング別の示唆",T(ZENCHO,["G数","前兆なし","前兆あり<br>東京上空あり","前兆あり<br>東京上空なし"]));
+ h+=sec("letter","月山招待状（50Gごと）",T([
+  ["今夜ディナーを楽しもう","デフォルト"],["パーティの時間は未定だ","デフォルト"],["心配しなくとも最悪の事態にはならないだろう","600G否定"],["2時46分に下記の場所で待っている","残り200/400/600G以内"],
+  ["1時35分に下記の場所で待っている","残り100/300/500G以内"],["喰うか喰われるかは君次第だ","残り200G以内 or 500G以上"],["3時までに僕のもとにきてくれ（緑）","残り300G以内濃厚"],
+  ["2時までに僕のもとにきてくれ（赤）","残り200G以内濃厚"],["今すぐ僕のもとにきてくれ（紫）","残り100G以内濃厚"]],["残りG示唆","内容"])+
+  T([["偶にはディナーでもどうだい？","偶数示唆"],["不思議な香りだ…（銀）","設定1否定"],["君はなかなかの活字中毒らしいね","設定2否定"],["本は良いよね…","設定3否定"],
+  ["僕としたことがすまない","設定4否定"],["存分に楽しもうじゃないか（金）","設定4以上濃厚"],["特別な夜を楽しもうじゃないか（虹）","設定6濃厚"]].map(r=>[r[0],hot(r[1])]),["設定示唆","内容"]));
+ h+=sec("end","AT終了画面",T([["金木研","デフォルト"],["亜門＆真戸暁","奇数示唆"],["鈴屋什造＆篠原","偶数示唆"],["神代利世","設定1否定"],["笛口雛実＆リョーコ","高設定示唆（弱）"],
+  ["ウタ＆イトリ＆四方","高設定示唆（強）"],["金木＆霧嶋董香","設定4以上濃厚"],["あんていく全員集合","設定6濃厚"]].map(r=>[r[0],hot(r[1])]))+
+  `<div class="note">獲得枚数表示：456 OVER＝${hot("設定4以上濃厚")}／666 OVER・1000-7 OVER＝${hot("設定6濃厚")}</div>`);
+ h+=sec("cz","CZ終了画面",T([["金木研","デフォルト"],["霧嶋董香 🟦","モードB以上期待"],["笛口雛実 🟦","モードB以上期待"],["亜門 🟡","モードB以上濃厚"],["真戸呉緒 🟡","モードC以上濃厚"],
+  ["金木（赫眼） 🟩","チャンス以上濃厚"],["董香（赫眼） 🟩","チャンス以上濃厚"],["月山 🟥","天国準備以上濃厚"],["神代利世 🟣","天国濃厚"],["鈴屋什造","偶数濃厚"],["梟","設定4以上濃厚"],["有馬貴将","設定6濃厚"]].map(r=>[r[0],hot(r[1])]),["キャラ（枠色）","示唆"]));
+ h+=sec("eye","アイキャッチ",T([["金木研","デフォルト"],["霧嶋董香","モードB以上示唆"],["笛口雛実","モードC以上示唆"],["月山習","本前兆期待アップ"],["神代利世","本前兆期待大幅アップ"],
+  ["喰種ver（金木・董香・雛実・月山）","残り100G以内濃厚"],["神代利世（喰種ver）","連続演出の復活濃厚"]]));
+ h+=sec("ed","ED中カード（レア役・喰図柄で出現）",T([
+  ["⬜白・弱","金木・董香・雛実・ヒデ・西尾・月山",hot("奇数示唆")],["⬜白・強","芳村・四方・ウタ・イトリ・古間・入見",hot("奇数示唆")],
+  ["🟦青・弱","金木・董香・雛実・ナキ・西尾・月山",hot("偶数示唆")],["🟦青・強","亜門・篠原・滝澤・真戸暁・真戸呉緒・丸手",hot("偶数示唆")],
+  ["🟥赤・弱","金木・董香・ヤモリ・絢都","高設定示唆"],["🟥赤・強","鯱・亜門・篠原・什造","高設定示唆"],
+  ["🟫銅","什造＝1否定　高槻泉＝2否定<br>梟＝3否定　エト＝4否定","否定"],["🩶銀","金木研",hot("設定3以上")],["🟨金","神代利世",hot("設定4以上")],["🟨金","隻眼の梟",hot("設定5以上")],["🌈虹","有馬貴将",hot("設定6濃厚")]],["色","キャラ","示唆"]));
+ h+=sec("trophy","ナミちゃんトロフィー",T([["黒","次回トロフィー出現"],["銅","設定2以上"],["銀","設定3以上"],["金",hot("設定4以上")],["喰種柄",hot("設定5以上")],["虹",hot("設定6濃厚")]]));
+ h+=sec("kakugan","赫眼・精神世界・内部状態",T([["赫眼","下段リプレイで突入するチェリー高確。10/20/30/50G継続、レア役約1/2.6"],["精神世界","超高確。10〜30G継続、レア役でCZの大チャンス。30Gは設定差大"],
+  ["内部状態","通常・高確・超高確。リプレイ・弱チェで昇格抽選"],["スイカ","規定G数から 10G/100G/MAX 減算"]]));
+ h+=sec("at","AT中",T([["喰種対決","レベルA〜D。勝利でBITESへ<br>特等ら＝レベルC以上／亜門＝レベルD濃厚<br>相手：鯱・絢都・ヤモリ・特等ら・亜門・有馬"],
+  ["BITES","小役で報酬A〜E→超BITES→極BITESへ昇格"],["百足覚醒","喰図柄揃いの84.5%。5回上乗せで終了、ループあり"],["隻眼の梟","喰図柄揃いの15.5%。1G完結 300/500/1000/2000枚"],
+  ["有馬ジャッジメント","VS有馬成功で突入 → CCGの死神 → 裏ATのチャンス"],["裏AT","突入画面がネガポジ反転で濃厚。期待約3430枚"],["ロングフリーズ","確定チェの約1/6。初期2000枚・期待約4400枚"],["導入エピソード","AT突入時などに10G"]]));
+ refNav.innerHTML=SEC.map(s=>`<button class="chip" data-go="${s[0]}">${s[1].replace(/（.*）/,"")}</button>`).join("");
+ refBox.innerHTML=h}
+refNav.onclick=e=>{const b=e.target.closest("[data-go]");if(!b)return;const el=document.getElementById("r-"+b.dataset.go);
+ scrollTo({top:el.getBoundingClientRect().top+scrollY-refNav.offsetHeight-document.querySelector("header").offsetHeight-8,behavior:"smooth"})};
+load();render();renderRef();
+const setHH=()=>document.documentElement.style.setProperty("--hh",document.querySelector("header").offsetHeight+"px");setHH();addEventListener("resize",setHH);
+</script>
+</body>
+</html>
