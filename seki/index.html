@@ -256,15 +256,27 @@ function vPlan(){
   }
   return h;
 }
-function vPeople(){
-  let h='<h2>利用者の登録</h2><div class="row"><input id="newname" placeholder="名前（例：山田 花子）" style="flex:1 1 200px"><button class="btn" data-a="addp">追加</button></div><details style="margin-top:10px"><summary>まとめて追加（1行に1人）</summary><textarea id="bulk" placeholder="田中 キヨ&#10;佐藤 ハル"></textarea><button class="btn" data-a="bulk">まとめて追加</button></details>'+
-  '<p class="note">名字と名前の間にスペースを入れてください（席表は名字だけ、同じ名字がいる日は名前の1文字目を付けます）。「車椅子」「歩行器」の人はテーブルタブの「通りやすい席」に座ります。「固定席」を選ぶと毎回その席になります。</p><div class="list">';
-  h+=S.people.map(p=>'<div class="item"><div class="row" style="justify-content:space-between"><span class="nm">'+esc(p.name)+'</span><button class="btn small del'+(armed===p.id?' arm':'')+'" data-a="delp" data-id="'+p.id+'">'+(armed===p.id?'もう一度で削除':'削除')+'</button></div>'+
+let openP=null;
+function vPerson(p){
+  return '<div class="row" style="justify-content:space-between;margin-top:8px"><button class="btn small" data-a="pclose">← 一覧に戻る</button><button class="btn small del'+(armed===p.id?' arm':'')+'" data-a="delp" data-id="'+p.id+'">'+(armed===p.id?'もう一度で削除':'削除')+'</button></div>'+
+    '<h2>'+esc(p.name)+'</h2>'+
+    '<div class="lbl">名前</div><input data-a="pname" data-id="'+p.id+'" value="'+esc(p.name)+'" style="width:100%;max-width:360px">'+
     '<div class="lbl">利用曜日</div><div class="chips">'+[1,2,3,4,5,6,0].map(d=>'<button class="chip mini'+(p.days[d]?' on':'')+'" data-a="day" data-id="'+p.id+'" data-d="'+d+'">'+DAYS[d]+'</button>').join('')+'</div>'+
     '<div class="lbl">移動</div><div class="chips">'+Object.entries(MOB).map(([k,v])=>'<button class="chip mini'+(p.mob===k?' on':'')+'" data-a="mob" data-id="'+p.id+'" data-m="'+k+'">'+v+'</button>').join('')+'</div>'+
     '<div class="lbl">固定席</div><select data-a="fix" data-id="'+p.id+'" style="width:100%;max-width:360px"><option value="">なし（毎回ランダム）</option>'+S.tables.map(t=>[...Array(t.seats).keys()].map(k=>{const on=p.fixed&&p.fixed.t===t.id&&p.fixed.k===k,o=S.people.find(q=>q!==p&&q.fixed&&q.fixed.t===t.id&&q.fixed.k===k);return'<option value="'+t.id+':'+k+'"'+(on?' selected':'')+'>'+esc(t.name)+' の '+(k+1)+'番'+(t.easy.includes(k)?'（通りやすい）':'')+(o?'　※'+esc(o.name)+'さんも固定':'')+'</option>'}).join('')).join('')+'</select>'+
-    '<div class="lbl">座れるテーブル（決まっている人だけ）</div><div class="chips">'+S.tables.map(t=>'<button class="chip mini'+((p.allow||[]).includes(t.id)?' on':'')+'" data-a="allow" data-id="'+p.id+'" data-t="'+t.id+'">'+esc(t.name)+'</button>').join('')+'</div></div>').join('');
-  return h+'</div>';
+    '<div class="lbl">座れるテーブル（決まっている人だけ）</div><div class="chips">'+S.tables.map(t=>'<button class="chip mini'+((p.allow||[]).includes(t.id)?' on':'')+'" data-a="allow" data-id="'+p.id+'" data-t="'+t.id+'">'+esc(t.name)+'</button>').join('')+'</div>'+
+    (()=>{const rs=S.rules.filter(r=>(r.a===p.id||r.b===p.id)&&P(r.a)&&P(r.b));return '<div class="lbl">相性（相性タブで登録）</div>'+(rs.length?rs.map(r=>'<div><span class="tag '+r.type+'">'+RS[r.type]+'</span>'+esc(P(r.a===p.id?r.b:r.a).name)+'</div>').join(''):'<div class="note">なし</div>')})()+
+    '<div class="row" style="margin-top:20px"><button class="btn" data-a="pclose">← 一覧に戻る</button></div>';
+}
+function vPeople(){
+  const p=openP&&P(openP);if(p)return vPerson(p);openP=null;
+  let h='<h2>利用者 <small style="font-size:14px;color:var(--sub)">'+S.people.length+'人</small></h2>';
+h+='<div class="row"><input id="newname" placeholder="名前（例：山田 花子）" style="flex:1 1 200px"><button class="btn" data-a="addp">追加</button></div><details style="margin-top:10px"><summary>まとめて追加（1行に1人）</summary><textarea id="bulk" placeholder="田中 キヨ&#10;佐藤 ハル"></textarea><button class="btn" data-a="bulk">まとめて追加</button></details>'+
+  '<p class="note" style="margin-bottom:18px">名字と名前の間にスペースを入れてください（席表は名字だけ、同じ名字がいる日は名前の1文字目を付けます）。</p>';
+  h+='<input id="psearch" placeholder="名前で探す" style="width:100%;margin-bottom:10px" autocomplete="off">'+
+  '<p class="note">名前をタップすると設定を開きます。印：車＝車椅子、歩＝歩行器、固＝固定席。</p>';
+  h+=S.people.length?'<div class="chips" id="plist">'+S.people.map(p=>'<button class="chip" data-a="popen" data-id="'+p.id+'" data-n="'+esc(p.name.replace(/[ 　]/g,''))+'">'+esc(p.name)+(p.mob?' <span class="tag '+(p.mob==='wc'?'good':'far')+'" style="margin:0 0 0 4px">'+(p.mob==='wc'?'車':'歩')+'</span>':'')+(p.fixed?' <span class="tag ng" style="margin:0 0 0 4px">固</span>':'')+'</button>').join('')+'</div>':'<div class="empty-state">まだ登録がありません</div>';
+  return h;
 }
 function vRules(){
   const opt=S.people.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
@@ -299,7 +311,9 @@ root.addEventListener('click',e=>{
   const b=e.target.closest('[data-a]');if(!b||/INPUT|SELECT/.test(b.tagName))return;const a=b.dataset.a,id=b.dataset.id;
   sel=null;
   if(!/^del/.test(a))armed=null;
-  if(a==='tab'){ui.tab=b.dataset.k;ss.set('seki-ui',ui);render();scrollTo(0,0);return}
+  if(a==='tab'){openP=null;ui.tab=b.dataset.k;ss.set('seki-ui',ui);render();scrollTo(0,0);return}
+  if(a==='popen'){openP=id;render();scrollTo(0,0);return}
+  if(a==='pclose'){openP=null;render();scrollTo(0,0);return}
   if(a==='clear-sample'){S={v:1,tables:S.tables,people:[],rules:[],plan:{date:tomorrow(),ids:[]},result:null};ui.tab='people';touch();return}
   if(a==='auto'){const d=new Date(S.plan.date+'T00:00').getDay();S.plan.ids=S.people.filter(p=>p.days[d]).map(p=>p.id);S.result=null;touch();return}
   if(a==='att'){const i=S.plan.ids.indexOf(id);i<0?S.plan.ids.push(id):S.plan.ids.splice(i,1);S.result=null;touch();return}
@@ -327,7 +341,7 @@ root.addEventListener('click',e=>{
   if(a==='imp2'){try{const d=JSON.parse(document.getElementById('impt').value);if(!Array.isArray(d.people)||!Array.isArray(d.tables))throw 0;delete d.boardDone;delete d.saved;S=d;S.sample=false;norm();say('読み込みました');touch()}catch(err){say('読み込めませんでした');render()}return}
   if(/^del/.test(a)){if(armed!==id){armed=id;render();setTimeout(()=>{if(armed===id){armed=null;render()}},3000);return}
     armed=null;
-    if(a==='delp'){S.people=S.people.filter(p=>p.id!==id);S.rules=S.rules.filter(r=>r.a!==id&&r.b!==id);S.plan.ids=S.plan.ids.filter(i=>i!==id);S.result=null}
+    if(a==='delp'){openP=null;S.people=S.people.filter(p=>p.id!==id);S.rules=S.rules.filter(r=>r.a!==id&&r.b!==id);S.plan.ids=S.plan.ids.filter(i=>i!==id);S.result=null}
     if(a==='delr')S.rules=S.rules.filter(r=>r.id!==id);
     if(a==='delt'){S.tables=S.tables.filter(t=>t.id!==id);S.people.forEach(p=>p.allow=(p.allow||[]).filter(x=>x!==id));S.result=null;norm()}
     if(S.sample)S.sample=false;touch()}
@@ -336,8 +350,10 @@ root.addEventListener('change',e=>{
   const el=e.target;
   if(el.id==='date'&&el.value){S.plan.date=el.value;S.result=null;touch()}
   if(el.dataset.a==='fix'){const p=P(el.dataset.id);if(el.value){const[t,k]=el.value.split(':');p.fixed={t,k:+k}}else p.fixed=null;S.result=null;touch()}
+  if(el.dataset.a==='pname'){const p=P(el.dataset.id);const v=el.value.trim();if(v){p.name=v;touch()}}
   if(el.dataset.a==='tname'){const t=T(el.dataset.id);t.name=el.value.trim()||t.name;touch()}
 });
+root.addEventListener('input',e=>{if(e.target.id!=='psearch')return;const q=e.target.value.replace(/[ 　]/g,'');document.querySelectorAll('#plist [data-n]').forEach(b=>b.style.display=!q||b.dataset.n.includes(q)?'':'none')});
 root.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='newname')root.querySelector('[data-a=addp]').click()});
 render();
 }</script></body></html>
