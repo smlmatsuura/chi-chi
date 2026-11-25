@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>席決めアシスタント</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap"><style>
+/* データはこの端末のブラウザの中だけに保存（サーバーへは送らない） */
+:root{color-scheme:light dark;--bg:light-dark(#fff,#16120f);--ink:light-dark(#2a2420,#f3ece6);--sub:light-dark(#7a6e66,#b3a79e);--kaki:#e8643a;--kaki2:light-dark(#fde6dc,#4a2416);--sky:light-dark(#e6f1fb,#1d2a36);--line:light-dark(#eadfd7,#3a302a);--ng:light-dark(#6b2c8f,#c79be6);--ngbg:light-dark(#f3e8fa,#33203f);--far:light-dark(#9a5b00,#f0b55a);--farbg:light-dark(#fff2dc,#3a2a12);--ok:light-dark(#1f6f8b,#7cc6e0);--card:light-dark(#fff,#211b17)}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Zen Maru Gothic",system-ui,sans-serif;overflow-x:clip}
+header{background:var(--kaki);color:#fff;padding:18px max(4vw,16px) 0}
+h1{margin:0;font-size:clamp(24px,6vw,34px);line-height:1.1;font-weight:900}
+.lead{margin:4px 0 12px;font-size:14px;opacity:.92}
+nav{display:flex;gap:4px;overflow-x:auto}
+nav button{flex:none;border:0;background:transparent;color:#fff;font:inherit;font-weight:700;padding:10px 16px;min-height:44px;border-radius:14px 14px 0 0;opacity:.85}
+nav button.on{background:var(--bg);color:var(--kaki);opacity:1}
+main{padding:18px max(4vw,16px) 120px;max-width:1100px;margin:0 auto}
+h2{font-size:20px;margin:22px 0 10px}
+.note{color:var(--sub);font-size:14px;margin:4px 0 10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+input,select{font:inherit;font-size:16px;padding:10px 12px;min-height:44px;border:2px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink)}
+input:focus,select:focus,button:focus-visible{outline:3px solid var(--kaki);outline-offset:2px}
+.btn{font:inherit;font-weight:700;min-height:44px;padding:10px 18px;border-radius:14px;border:2px solid var(--kaki);background:var(--card);color:var(--kaki);cursor:pointer}
+.btn.main{background:var(--kaki);color:#fff;font-size:18px;padding:14px 22px}
+.btn.small{min-height:36px;padding:4px 12px;font-size:14px}
+.btn.del{border-color:var(--line);color:var(--sub)}.btn.del.arm{border-color:var(--ng);color:#fff;background:var(--ng)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:inherit;min-height:44px;padding:8px 14px;border-radius:999px;border:2px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.chip.on{background:var(--kaki);border-color:var(--kaki);color:#fff;font-weight:700}
+.chip.mini{min-height:34px;padding:2px 10px;font-size:14px}
+.count{font-size:15px;margin:10px 0}.count b{font-size:22px}
+.warn{border-radius:14px;padding:10px 14px;margin:6px 0;font-size:15px}
+.warn.ng{background:var(--ngbg);color:var(--ng)}.warn.far{background:var(--farbg);color:var(--far)}.warn.ok{background:var(--sky);color:var(--ok)}
+.list{border-top:2px solid var(--line)}
+.item{padding:12px 0;border-bottom:2px solid var(--line)}
+.item .nm{font-weight:700;font-size:18px}
+.lbl{font-size:13px;color:var(--sub);margin:8px 0 4px}
+.tag{display:inline-block;font-size:13px;font-weight:700;border-radius:8px;padding:2px 8px;margin-right:6px}
+.tag.ng{background:var(--ngbg);color:var(--ng)}.tag.far{background:var(--farbg);color:var(--far)}.tag.good{background:var(--sky);color:var(--ok)}
+.toast{position:fixed;left:0;right:0;bottom:0;padding:12px max(4vw,16px) calc(12px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);z-index:5}
+.sample{background:var(--kaki2);border-radius:14px;padding:10px 14px;font-size:14px;margin-bottom:12px}
+textarea{width:100%;min-height:120px;font:14px/1.5 ui-monospace,monospace;border:2px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);padding:10px}
+.chartwrap{overflow-x:auto;margin-top:12px;border-radius:16px}
+.chart.wide{min-width:1000px}
+.chart{display:block;width:100%;cursor:pointer;height:auto;border-radius:16px;border:2px solid var(--line);background:#fff}
+.prev{display:block;width:100%;max-width:440px;height:auto;margin:8px 0}
+.prev .st{cursor:pointer}
+.empty-state{color:var(--sub);padding:20px;border:2px dashed var(--line);border-radius:16px;text-align:center}
+#pimg{display:none}
+@media print{@page{size:A4 landscape;margin:8mm}body>*{display:none!important}#pimg{display:block!important;width:100%;height:auto}}
+</style></head><body><div id="root"></div><img id="pimg" alt=""><script>{
+const KEY='seki-data';
+const DAYS=['日','月','火','水','木','金','土'];
+const RT={ng:'絶対NG（同じテーブル×）',far:'なるべく離す',good:'一緒がいい'};
+const RS={ng:'絶対NG',far:'なるべく離す',good:'一緒がいい'};
+const MOB={wc:'車椅子',walker:'歩行器'};
+const uid=()=>Math.random().toString(36).slice(2,9);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let canStore=true;
+const ls={get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){canStore=false;return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){canStore=false}}};
+const ss={get(k){try{return JSON.parse(sessionStorage.getItem(k))}catch(e){return null}},set(k,v){try{sessionStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function tomorrow(){const d=new Date();d.setDate(d.getDate()+1);return ymd(d)}
+function sample(){
+  const t=[{id:'ta',name:'1',seats:8,easy:[0],shape:'vert'},{id:'tb',name:'2',seats:8,easy:[],shape:'vert'},{id:'tc',name:'3',seats:8,easy:[3],shape:'vert'},{id:'td',name:'4',seats:8,easy:[],shape:'vert'},{id:'te',name:'六角',seats:10,easy:[],shape:'round'}];
+  const n=['田中 キヨ','佐藤 ハル','鈴木 正雄','高橋 トメ','伊藤 茂','渡辺 フミ','山本 勇','中村 シズ','小林 治','加藤 ミツ','吉田 昭','山口 ヨシ','松本 清','井上 ナツ','木村 進','林 カズ','清水 稔','森 ユキ','池田 勝','橋本 サト','鈴木 ハナ','前田 フサ'];
+  const p=n.map((x,i)=>({id:'p'+i,name:x,days:[0,1,2,3,4,5,6].map(d=>d>0&&d<6&&((i+d)%4!==0)),allow:[],mob:i===4?'wc':i===10?'walker':'',fixed:null}));
+  return {v:1,sample:true,tables:t,people:p,rules:[{id:'r1',a:'p0',b:'p1',type:'ng'},{id:'r2',a:'p2',b:'p6',type:'far'},{id:'r3',a:'p3',b:'p5',type:'good'}],plan:{date:tomorrow(),ids:[]},result:null};
+}
+let S=ls.get(KEY)||sample();
+if(!S.plan||!S.plan.date||S.plan.date<ymd(new Date())){S.plan={date:tomorrow(),ids:[]};S.result=null}
+function norm(){S.tables.forEach(t=>{t.easy=(t.easy||[]).filter(k=>k<t.seats);t.shape=['rect','vert','round','hex'].includes(t.shape)?t.shape:'rect'});S.people.forEach(p=>{p.allow=p.allow||[];{const ft=p.fixed&&S.tables.find(t=>t.id===p.fixed.t);if(!ft||p.fixed.k>=ft.seats)p.fixed=null}p.mob=p.mob===true?'wc':['wc','walker'].includes(p.mob)?p.mob:'';p.days=p.days||[false,true,true,true,true,true,false]});S.rules=S.rules||[]}
+norm();
+const ui=Object.assign({tab:'plan'},ss.get('seki-ui')||{});
+let sel=null,msg='',armed=null,msgT=0;
+const P=id=>S.people.find(p=>p.id===id);
+const T=id=>S.tables.find(t=>t.id===id);
+function say(m){msg=m;clearTimeout(msgT);msgT=setTimeout(()=>{msg='';render()},3500)}
+function touch(){ls.set(KEY,S);render()}
+/* ---- 席決めロジック ---- */
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a}
+function score(ids,of){
+  let s=0;const set=new Set(ids);
+  for(const r of S.rules){if(!set.has(r.a)||!set.has(r.b))continue;const same=of[r.a]===of[r.b];
+    if(r.type==='ng'&&same)s-=1000;if(r.type==='far'&&same)s-=40;if(r.type==='good'&&same)s+=15}
+  for(const id of ids){const p=P(id);if(p.allow&&p.allow.length&&!p.allow.includes(of[id]))s-=500}
+  const cap=S.tables.reduce((a,t)=>a+t.seats,0),cnt={};
+  for(const id of ids)cnt[of[id]]=(cnt[of[id]]||0)+1;
+  const mc={};for(const id of ids)if(P(id).mob)mc[of[id]]=(mc[of[id]]||0)+1;
+  for(const t of S.tables){const tg=ids.length*t.seats/cap;s-=((cnt[t.id]||0)-tg)**2*2;s-=Math.max(0,(mc[t.id]||0)-t.easy.length)*500}
+  return s;
+}
+function fixedMap(ids){const m={},used=new Set();for(const id of ids){const f=P(id)?.fixed,t=f&&T(f.t);if(!t||f.k>=t.seats)continue;const key=f.t+':'+f.k;if(used.has(key))continue;used.add(key);m[id]=f}return m}
+function solve(ids){
+  const tb=S.tables;let cands=[],best=-Infinity;const fx=fixedMap(ids);
+  for(let r=0;r<150;r++){
+    const of={},cnt={};tb.forEach(t=>cnt[t.id]=0);
+    for(const id in fx){of[id]=fx[id].t;cnt[fx[id].t]++}
+    for(const id of shuffle(ids.filter(i=>!fx[i]))){
+      const p=P(id),free=tb.filter(t=>cnt[t.id]<t.seats),ok=free.filter(t=>!p.allow?.length||p.allow.includes(t.id));
+      const pick=(ok.length?ok:free)[Math.random()*(ok.length?ok:free).length|0];of[id]=pick.id;cnt[pick.id]++}
+    let cur=score(ids,of);
+    for(let k=0;k<ids.length*40;k++){
+      const a=ids[Math.random()*ids.length|0];if(fx[a])continue;
+      if(Math.random()<.5){const b=ids[Math.random()*ids.length|0];if(of[a]===of[b]||fx[b])continue;
+        [of[a],of[b]]=[of[b],of[a]];const n=score(ids,of);if(n>=cur)cur=n;else[of[a],of[b]]=[of[b],of[a]]}
+      else{const t=tb[Math.random()*tb.length|0];if(t.id===of[a]||cnt[t.id]>=t.seats)continue;
+        const o=of[a];of[a]=t.id;cnt[o]--;cnt[t.id]++;const n=score(ids,of);if(n>=cur)cur=n;else{of[a]=o;cnt[o]++;cnt[t.id]--}}
+    }
+    if(cur>best+1e-6){best=cur;cands=[of]}else if(Math.abs(cur-best)<1e-6)cands.push(of);
+  }
+  const key=of=>S.tables.map(t=>ids.filter(i=>of[i]===t.id).sort().join(',')).join('|');
+  const prev=S.result?key(Object.fromEntries(Object.entries(S.result).flatMap(([t,a])=>a.filter(Boolean).map(i=>[i,t])))):'';
+  let pool=cands.filter(c=>key(c)!==prev);if(!pool.length)pool=cands;
+  const of=pool[Math.random()*pool.length|0],res={};
+  for(const t of tb){const m=shuffle(ids.filter(i=>of[i]===t.id&&!fx[i])),mob=m.filter(i=>P(i).mob),oth=m.filter(i=>!P(i).mob);
+    const seat=Array(t.seats).fill(null);for(const i in fx)if(fx[i].t===t.id)seat[fx[i].k]=i;
+    const ez=shuffle(t.easy.filter(k=>!seat[k])),rest=shuffle([...Array(t.seats).keys()].filter(k=>!t.easy.includes(k)&&!seat[k]));
+    for(const i of mob){const k=ez.length?ez.pop():rest.pop();seat[k]=i}
+    const left=shuffle(ez.concat(rest));for(const i of oth)seat[left.pop()]=i;res[t.id]=seat}
+  return res;
+}
+function issues(){
+  if(!S.result)return[];const of={},out=[];
+  for(const[t,a]of Object.entries(S.result))a.forEach(i=>{if(i)of[i]=t});
+  for(const r of S.rules){if(!(r.a in of)||!(r.b in of))continue;const same=of[r.a]===of[r.b],n=P(r.a)?.name+' と '+P(r.b)?.name;
+    if(r.type==='ng'&&same)out.push(['ng','絶対NG：'+n+' が同じテーブルです']);
+    if(r.type==='far'&&same)out.push(['far','なるべく離す：'+n+' が同じテーブルです']);
+    if(r.type==='good'&&!same)out.push(['ok','一緒がいい：'+n+' は別テーブルです（席の都合）'])}
+  for(const id in of){const p=P(id);if(p?.allow?.length&&!p.allow.includes(of[id]))out.push(['ng',p.name+' さんは指定テーブル以外になっています'])}
+  for(const t of S.tables)(S.result[t.id]||[]).forEach((i,k)=>{if(i&&P(i)?.mob&&!t.easy.includes(k))out.push(['ng',P(i).name+' さん（'+MOB[P(i).mob]+'）が通りにくい席（'+t.name+' '+(k+1)+'番）です'])});
+  for(const id of Object.keys(of)){const f=P(id)?.fixed;if(f&&T(f.t)&&S.result[f.t]?.[f.k]!==id)out.push(['far',P(id).name+' さんが固定席（'+T(f.t).name+' '+(f.k+1)+'番）以外です'])}
+  return out;
+}
+function textOut(){
+  const d=new Date(S.plan.date+'T00:00');let s=(d.getMonth()+1)+'/'+d.getDate()+'('+DAYS[d.getDay()]+') の席\n';
+  for(const t of S.tables){const a=(S.result[t.id]||[]).filter(Boolean).map(i=>P(i)?.name);s+='\n【'+t.name+'】\n'+(a.length?a.join('\n'):'（なし）')+'\n'}
+  return s;
+}
+/* ---- 席の形と席表 ---- */
+function geom(t,W,H){
+  const n=t.seats,seats=[];
+  if(t.shape==='round'||t.shape==='hex'){
+    const sh=Math.min(H*0.16,90);let sw=Math.min(W*0.28,280);let Rx=W/2-sw/2-2;const Ry=Math.min(H/2-sh/2-2,Math.max(Rx*(n>6?1.3:1),sh*1.6));
+    sw=Math.min(sw,Math.PI*(Rx+Ry)/n*0.78);Rx=W/2-sw/2-2;
+    for(let i=0;i<n;i++){const a=-Math.PI/2+2*Math.PI*i/n;seats.push({x:W/2+Rx*Math.cos(a)-sw/2,y:H/2+Ry*Math.sin(a)-sh/2,w:sw,h:sh})}
+    return{kind:t.shape,cx:W/2,cy:H/2,rx:Math.max(16,Rx-sw*(n>6?0.7:0.5)-12),ry:Math.max(16,Ry-sh*(n>6?0.9:0.5)-12),seats};
+  }
+  if(t.shape==='vert'){
+    const L=Math.ceil(n/2),Rn=n-L,g=Math.max(6,H*0.012),sw=Math.min(W*0.26,110),sh=(H-g)/Math.max(L,1)-g;
+    for(let i=0;i<L;i++)seats.push({x:0,y:g+i*(sh+g),w:sw,h:sh});
+    for(let i=0;i<Rn;i++)seats.push({x:W-sw,y:g+i*(sh+g),w:sw,h:sh});
+    return{kind:'vert',tx:sw+g,ty:0,tw:Math.max(10,W-2*sw-2*g),th:H,seats};
+  }
+  const top=Math.ceil(n/2),bot=n-top,g=Math.max(6,W*0.015),cw=(W-g)/top,sh=Math.min(H*0.24,100);
+  for(let i=0;i<top;i++)seats.push({x:g+i*cw,y:0,w:cw-g,h:sh});
+  for(let i=0;i<bot;i++)seats.push({x:g+i*cw,y:H-sh,w:cw-g,h:sh});
+  return{kind:'rect',tx:g/2,ty:sh+g,tw:W-g,th:Math.max(10,H-2*sh-2*g),seats};
+}
+function hexPts(g,ox,oy){const{cx,cy,rx,ry}=g;return[[cx-rx/2,cy-ry],[cx+rx/2,cy-ry],[cx+rx,cy],[cx+rx/2,cy+ry],[cx-rx/2,cy+ry],[cx-rx,cy]].map(([a,b])=>[a+ox,b+oy])}
+function midLine(g){if(g.kind==='hex')return[g.cx-g.rx,g.cy,g.cx+g.rx,g.cy];if(g.kind==='vert'&&g.seats.length>=6)return[g.tx,g.ty+g.th/2,g.tx+g.tw,g.ty+g.th/2];if(g.kind==='rect'&&g.seats.length>=6)return[g.tx+g.tw/2,g.ty,g.tx+g.tw/2,g.ty+g.th];return null}
+function preview(t){
+  const W=t.shape==='vert'?240:400,H=t.shape==='vert'?340:t.shape==='rect'?200:260,g=geom(t,W,H),st='fill="#f3e3cf" stroke="#c9a27c" stroke-width="2"';
+  let h='<svg class="prev" viewBox="-4 -4 '+(W+8)+' '+(H+8)+'" style="max-width:'+(W+40)+'px" role="img" aria-label="'+esc(t.name)+'の席の並び">';
+  h+=g.kind==='round'?'<ellipse cx="'+g.cx+'" cy="'+g.cy+'" rx="'+g.rx+'" ry="'+g.ry+'" '+st+'/>':g.kind==='hex'?'<polygon points="'+hexPts(g,0,0).map(p=>p.join(',')).join(' ')+'" '+st+'/>':'<rect x="'+g.tx+'" y="'+g.ty+'" width="'+g.tw+'" height="'+g.th+'" rx="10" '+st+'/>';
+  const m=midLine(g);if(m)h+='<line x1="'+m[0]+'" y1="'+m[1]+'" x2="'+m[2]+'" y2="'+m[3]+'" stroke="#c9a27c" stroke-width="2"/>';
+  g.seats.forEach((p,k)=>{const ez=t.easy.includes(k);h+='<g class="st" data-a="easy" data-id="'+t.id+'" data-k="'+k+'"><rect x="'+p.x+'" y="'+p.y+'" width="'+p.w+'" height="'+p.h+'" rx="8" fill="'+(ez?'#d7ecf6':'#fff')+'" stroke="'+(ez?'#1f6f8b':'#9a8f87')+'" stroke-width="'+(ez?4:2)+'"/><text x="'+(p.x+p.w/2)+'" y="'+(p.y+p.h/2)+'" text-anchor="middle" dominant-baseline="central" font-size="'+Math.min(22,p.h*0.45,p.w*0.4)+'" font-weight="700" fill="'+(ez?'#1f6f8b':'#2a2420')+'">'+(k+1)+(ez&&p.w>60?' 通':'')+'</text></g>'});
+  return h+'</svg>';
+}
+function rr(x,a,b,w,h,r){r=Math.min(r,w/2,h/2);x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath()}
+function mark(x,mb,a,b,s,F){rr(x,a,b,s,s,s*0.22);x.fillStyle=mb==='wc'?'#1f6f8b':'#9a5b00';x.fill();x.fillStyle='#fff';x.font='700 '+Math.round(s*0.72)+'px '+F;const al=x.textAlign;x.textAlign='center';x.fillText(mb==='wc'?'車':'歩',a+s/2,b+s/2+1);x.textAlign=al;x.fillStyle='#2a2420'}
+function vtext(x,nm,X,Y,w,h,F,mb,ns){
+  let ip=false;const ch=Array.from(nm.trim().replace(/[ 　]+/g,' ')).map(c=>{const p=/[(（]/.test(c)?(ip=true,'p'):/[)）]/.test(c)?(ip=false,'p'):ip?'s':c===' '?'b':'n';return{c:c==='（'?'(':c==='）'?')':c,t:p}}),U={n:1,s:0.8,p:0.38,b:0.35};
+  const u=ch.reduce((a,o)=>a+U[o.t],0)+(mb?1.1:0),av=h-ns-6,z=Math.max(12,Math.min(w*0.58,av/u,56));
+  x.textAlign='center';let y=Y+ns+2+(av-u*z)/2;const cx=X+w/2;
+  for(const o of ch){const a=U[o.t]*z;if(o.t==='b'){y+=a;continue}
+    x.font='700 '+Math.round(o.t==='n'?z:z*0.8)+'px '+F;
+    if(o.t==='p'){x.save();x.translate(cx,y+a/2);x.rotate(Math.PI/2);x.fillText(o.c,0,0);x.restore()}else x.fillText(o.c,cx,y+a/2);y+=a}
+  if(mb)mark(x,mb,cx-z*0.45,y+z*0.1,z*0.9,F);x.textAlign='left';
+}
+function dateLabel(){const d=new Date(S.plan.date+'T00:00');return (d.getMonth()+1)+'月'+d.getDate()+'日（'+DAYS[d.getDay()]+'）'}
+function shortMap(){const ids=Object.values(S.result||{}).flat().filter(Boolean),m={},g={};
+  for(const id of ids){const[s,...r]=(P(id)?.name||'').trim().split(/[ 　]+/);(g[s]=g[s]||[]).push([id,r.join('')])}
+  for(const s in g){const a=g[s];if(a.length===1||a.some(x=>!x[1])){a.forEach(([id,gv])=>m[id]=a.length===1?s:s+gv);continue}
+    let L=1;while(L<4&&new Set(a.map(x=>x[1].slice(0,L))).size<a.length)L++;a.forEach(([id,gv])=>m[id]=s+'('+gv.slice(0,L)+')')}
+  return m}
+const CW=1754,CH=620;let hits=[];
+async function drawChart(pr){
+  try{await document.fonts.load('700 32px "Zen Maru Gothic"')}catch(e){}
+  const W=CW,H=CH,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');if(!pr)hits=[];const SM=shortMap();
+  const F='"Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans","Noto Sans JP",sans-serif';
+  x.fillStyle='#fff';x.fillRect(0,0,W,H);x.textBaseline='middle';
+  x.fillStyle='#2a2420';x.font='900 40px '+F;x.fillText(dateLabel()+' の席',40,38);
+  x.font='500 22px '+F;x.fillStyle='#1f6f8b';x.textAlign='right';x.fillText('青い太枠＝通りやすい席　車＝車椅子　歩＝歩行器',W-40,38);x.textAlign='left';
+  const n=S.tables.length,top=70,pad=12,one=n<=6&&S.tables.every(t=>t.shape!=='rect');
+  const cols=one?n:n<=1?1:n<=4?2:n<=6?3:4,rows=Math.ceil(n/cols),ch=(H-top-10)/rows;
+  const wt=S.tables.map(t=>one?(t.shape==='vert'?1:t.seats>6?2.6:1.7):1),cells=[];
+  for(let r0=0;r0<rows;r0++){const row=S.tables.map((t,i)=>i).filter(i=>Math.floor(i/cols)===r0),sum=row.reduce((a,i)=>a+wt[i],0)||1;let xx=40;
+    for(const i of row){const w=(W-80)*wt[i]/(one?sum:cols);cells[i]={x0:xx,y0:top+r0*ch,cw:w};xx+=w}}
+  S.tables.forEach((t,i)=>{
+    const{x0,y0,cw}=cells[i];
+    x.fillStyle='#e8643a';x.font='700 26px '+F;x.fillText(t.name,x0+pad,y0+12);
+    const gx=x0+pad,gy=y0+30,gw=cw-pad*2,gh=ch-30-pad,g=geom(t,gw,gh);
+    x.fillStyle='#f3e3cf';x.strokeStyle='#c9a27c';x.lineWidth=3;
+    if(g.kind==='round'){x.beginPath();x.ellipse(gx+g.cx,gy+g.cy,g.rx,g.ry,0,0,Math.PI*2);x.fill();x.stroke()}
+    else if(g.kind==='hex'){x.beginPath();hexPts(g,gx,gy).forEach(([a,b],j)=>j?x.lineTo(a,b):x.moveTo(a,b));x.closePath();x.fill();x.stroke()}
+    else{rr(x,gx+g.tx,gy+g.ty,g.tw,g.th,12);x.fill();x.stroke()}
+    const m=midLine(g);if(m){x.beginPath();x.moveTo(gx+m[0],gy+m[1]);x.lineTo(gx+m[2],gy+m[3]);x.stroke()}
+    g.seats.forEach((p,k)=>{
+      const id=(S.result[t.id]||[])[k],ez=t.easy.includes(k),X=gx+p.x,Y=gy+p.y;
+      rr(x,X,Y,p.w,p.h,12);x.fillStyle=ez?'#eef7fb':'#fff';x.fill();
+      x.setLineDash(id?[]:[8,6]);x.strokeStyle=ez?'#1f6f8b':id?'#2a2420':'#bbb';x.lineWidth=ez?6:2.5;x.stroke();x.setLineDash([]);
+      if(!pr){hits.push({t:t.id,k,x:X,y:Y,w:p.w,h:p.h});if(sel&&sel.t===t.id&&sel.k===k){rr(x,X-6,Y-6,p.w+12,p.h+12,16);x.strokeStyle='#e8643a';x.lineWidth=9;x.stroke()}}
+      const ns=Math.round(Math.min(17,p.h*0.18));x.fillStyle='#e8643a';x.font='700 '+ns+'px '+F;x.fillText(String(k+1),X+8,Y+ns*0.8);
+      const mb=id&&P(id)?.mob;
+      const nm=id?(SM[id]||P(id)?.name||''):'空席';x.fillStyle=id?'#2a2420':'#aaa';
+      if(p.h>p.w*1.4){vtext(x,nm,X,Y,p.w,p.h,F,mb,ns);return}
+      const base=Math.min(44,p.h*0.46),mw=p.w-16;
+      let z=base;const set=v=>x.font='700 '+v+'px '+F,tw=()=>x.measureText(nm).width+(mb?z*1.02:0);set(z);while(tw()>mw&&z>12)set(--z);
+      const nw=x.measureText(nm).width,sx=X+p.w/2-tw()/2,cy=Y+p.h/2+ns*0.25;x.fillStyle=id?'#2a2420':'#aaa';x.fillText(nm,sx,cy);
+      if(mb)mark(x,mb,sx+nw+z*0.12,cy-z*0.44,z*0.88,F);
+    });
+  });
+  return c;
+}
+/* ---- 保存・印刷（ファイルはこの端末に保存。どこにも送らない） ---- */
+let pdfLib=null;
+function loadPDF(){return pdfLib||(pdfLib=new Promise((ok,ng)=>{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';sc.onload=()=>ok(window.jspdf);sc.onerror=()=>{pdfLib=null;ng()};document.head.appendChild(sc)}))}
+function dl(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000)}
+async function saveFile(kind){
+  try{
+    const c=await drawChart(true),name='席表_'+S.plan.date;
+    if(kind==='print'){const im=document.getElementById('pimg');im.src=c.toDataURL('image/png');await new Promise(ok=>{if(im.complete)ok();else im.onload=ok});window.print();return}
+    if(kind==='pdf'){const L=await loadPDF(),pdf=new L.jsPDF({orientation:'landscape',unit:'mm',format:'a4'});pdf.addImage(c.toDataURL('image/png'),'PNG',8,8,281,281*CH/CW);dl(pdf.output('blob'),name+'.pdf')}
+    else{const bl=await new Promise(ok=>c.toBlob(ok,'image/png'));dl(bl,name+'.png')}
+  }catch(e){say('うまく保存できませんでした。席表の画像を長押ししても保存できます');render()}
+}
+let chartURL='';
+function isRot(){return ui.rot??(innerWidth<700)}
+function rotC(c){const r=document.createElement('canvas');r.width=c.height;r.height=c.width;const x=r.getContext('2d');x.translate(r.width,0);x.rotate(Math.PI/2);x.drawImage(c,0,0);return r}
+function refreshChart(){if(!S.result||ui.tab!=='plan')return;drawChart().then(c=>{chartURL=(isRot()?rotC(c):c).toDataURL('image/png');const im=document.getElementById('chartimg');if(im)im.src=chartURL}).catch(()=>{})}
+/* ---- 画面 ---- */
+function vPlan(){
+  const ids=S.plan.ids.filter(P),cap=S.tables.reduce((a,t)=>a+t.seats,0);
+  const d=new Date(S.plan.date+'T00:00'),dw=DAYS[d.getDay()];
+  let h=(canStore?'':'<div class="warn ng">このブラウザでは保存できない設定になっています（プライベートブラウズ等）。閉じると消えます。</div>')+
+  (S.sample?'<div class="sample">今は見本データが入っています。「利用者」「テーブル」タブで自分の施設に合わせて変えてください。<button class="btn small" data-a="clear-sample">見本を全部消す</button></div>':'')+
+  '<h2>① 日付と利用者</h2><div class="row"><input type="date" id="date" value="'+esc(S.plan.date)+'"><button class="btn" data-a="auto">'+dw+'曜日の利用者を自動チェック</button></div>'+
+  '<p class="note">来る人をタップ（オレンジ＝来る）。休みの人はタップで外す。</p>';
+  h+=S.people.length?'<div class="chips">'+S.people.map(p=>'<button class="chip'+(ids.includes(p.id)?' on':'')+'" data-a="att" data-id="'+p.id+'">'+esc(p.name)+'</button>').join('')+'</div>':'<div class="empty-state">まず「利用者」タブで名前を登録してください</div>';
+  h+='<p class="count"><b>'+ids.length+'</b> 人 ／ 席 '+cap+' 席'+(ids.length>cap?'　<span style="color:var(--ng)">席が足りません</span>':'')+'</p>';
+  h+='<button class="btn main" data-a="solve"'+(ids.length&&ids.length<=cap?'':' disabled')+'>'+(S.result?'別の案にする':'席を決める')+'</button>';
+  if(S.result){
+    h+='<h2>② 席表</h2>';
+    const is=issues();
+    h+=is.length?is.map(x=>'<div class="warn '+x[0]+'">'+esc(x[1])+'</div>').join(''):'<div class="warn ok">相性の条件はすべてOKです</div>';
+    h+='<p class="note">名前をタップ→入れ替えたい席（空席も可）をタップで入れ替え。'+(isRot()?'スマホを横向きにすると読みやすいです。':'席表は横にスクロールできます。')+'</p><div class="chartwrap" id="cw"><img id="chartimg" class="chart'+(isRot()?'':' wide')+'" alt="席表"'+(chartURL?' src="'+chartURL+'"':'')+'></div>'+
+      '<div class="row" style="margin-top:12px"><button class="btn main" data-a="print">印刷</button><button class="btn" data-a="pdf">PDFで保存</button><button class="btn" data-a="png">画像で保存</button><button class="btn" data-a="rot">向きを変える</button></div>';
+    h+='<div class="row" style="margin-top:12px"><button class="btn" data-a="copy">LINE用にコピー</button><button class="btn del" data-a="reset">案を消す</button></div><div id="copyout"></div>';
+  }
+  return h;
+}
+function vPeople(){
+  let h='<h2>利用者の登録</h2><div class="row"><input id="newname" placeholder="名前（例：山田 花子）" style="flex:1 1 200px"><button class="btn" data-a="addp">追加</button></div><details style="margin-top:10px"><summary>まとめて追加（1行に1人）</summary><textarea id="bulk" placeholder="田中 キヨ&#10;佐藤 ハル"></textarea><button class="btn" data-a="bulk">まとめて追加</button></details>'+
+  '<p class="note">名字と名前の間にスペースを入れてください（席表は名字だけ、同じ名字がいる日は名前の1文字目を付けます）。「車椅子」「歩行器」の人はテーブルタブの「通りやすい席」に座ります。「固定席」を選ぶと毎回その席になります。</p><div class="list">';
+  h+=S.people.map(p=>'<div class="item"><div class="row" style="justify-content:space-between"><span class="nm">'+esc(p.name)+'</span><button class="btn small del'+(armed===p.id?' arm':'')+'" data-a="delp" data-id="'+p.id+'">'+(armed===p.id?'もう一度で削除':'削除')+'</button></div>'+
+    '<div class="lbl">利用曜日</div><div class="chips">'+[1,2,3,4,5,6,0].map(d=>'<button class="chip mini'+(p.days[d]?' on':'')+'" data-a="day" data-id="'+p.id+'" data-d="'+d+'">'+DAYS[d]+'</button>').join('')+'</div>'+
+    '<div class="lbl">移動</div><div class="chips">'+Object.entries(MOB).map(([k,v])=>'<button class="chip mini'+(p.mob===k?' on':'')+'" data-a="mob" data-id="'+p.id+'" data-m="'+k+'">'+v+'</button>').join('')+'</div>'+
+    '<div class="lbl">固定席</div><select data-a="fix" data-id="'+p.id+'" style="width:100%;max-width:360px"><option value="">なし（毎回ランダム）</option>'+S.tables.map(t=>[...Array(t.seats).keys()].map(k=>{const on=p.fixed&&p.fixed.t===t.id&&p.fixed.k===k,o=S.people.find(q=>q!==p&&q.fixed&&q.fixed.t===t.id&&q.fixed.k===k);return'<option value="'+t.id+':'+k+'"'+(on?' selected':'')+'>'+esc(t.name)+' の '+(k+1)+'番'+(t.easy.includes(k)?'（通りやすい）':'')+(o?'　※'+esc(o.name)+'さんも固定':'')+'</option>'}).join('')).join('')+'</select>'+
+    '<div class="lbl">座れるテーブル（決まっている人だけ）</div><div class="chips">'+S.tables.map(t=>'<button class="chip mini'+((p.allow||[]).includes(t.id)?' on':'')+'" data-a="allow" data-id="'+p.id+'" data-t="'+t.id+'">'+esc(t.name)+'</button>').join('')+'</div></div>').join('');
+  return h+'</div>';
+}
+function vRules(){
+  const opt=S.people.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
+  let h='<h2>相性の登録</h2><div class="row"><select id="ra"><option value="">1人目</option>'+opt+'</select><select id="rb"><option value="">2人目</option>'+opt+'</select><select id="rt">'+Object.entries(RT).map(([k,v])=>'<option value="'+k+'">'+v+'</option>').join('')+'</select><button class="btn" data-a="addr">登録</button></div>'+
+  '<p class="note">絶対NGは必ず別テーブル、なるべく離すは席に余裕があれば別テーブル、一緒がいいは可能なら同じテーブルにします。</p>';
+  const rs=S.rules.filter(r=>P(r.a)&&P(r.b));
+  h+=rs.length?'<div class="list">'+rs.map(r=>'<div class="item row" style="justify-content:space-between"><span><span class="tag '+r.type+'">'+RS[r.type]+'</span>'+esc(P(r.a).name)+' ・ '+esc(P(r.b).name)+'</span><button class="btn small del'+(armed===r.id?' arm':'')+'" data-a="delr" data-id="'+r.id+'">'+(armed===r.id?'もう一度で削除':'削除')+'</button></div>').join('')+'</div>':'<div class="empty-state">まだ登録がありません</div>';
+  return h;
+}
+function vTables(){
+  let h='<h2>テーブルと席数</h2><p class="note">上から順に、席表では左から並びます（◀▶で並べ替え）。縦長机は左の列の上から1・2・3…、続けて右の列の上から。六角・丸は一番上から時計回りです。</p><div class="list">'+S.tables.map(t=>'<div class="item row"><input value="'+esc(t.name)+'" data-a="tname" data-id="'+t.id+'" style="flex:1 1 160px"><button class="btn small" data-a="seat-" data-id="'+t.id+'">−</button><b style="min-width:3em;text-align:center">'+t.seats+'席</b><button class="btn small" data-a="seat+" data-id="'+t.id+'">＋</button><button class="btn small" data-a="tmove" data-id="'+t.id+'" data-d="-1" aria-label="左へ">◀</button><button class="btn small" data-a="tmove" data-id="'+t.id+'" data-d="1" aria-label="右へ">▶</button><button class="btn small del'+(armed===t.id?' arm':'')+'" data-a="delt" data-id="'+t.id+'">'+(armed===t.id?'もう一度で削除':'削除')+'</button><div style="flex-basis:100%"><div class="lbl">形</div><div class="chips">'+[['vert','縦長机（左右に座る）'],['rect','横長机（上下に座る）'],['hex','六角'],['round','丸']].map(([k,v])=>'<button class="chip mini'+(t.shape===k?' on':'')+'" data-a="shape" data-id="'+t.id+'" data-s="'+k+'">'+v+'</button>').join('')+'</div>'+preview(t)+'<div class="lbl">通りやすい席（図の席か番号をタップ）</div><div class="chips">'+[...Array(t.seats).keys()].map(k=>'<button class="chip mini'+(t.easy.includes(k)?' on':'')+'" data-a="easy" data-id="'+t.id+'" data-k="'+k+'">'+(k+1)+'番</button>').join('')+'</div></div></div>').join('')+'</div>';
+  h+='<div class="row" style="margin-top:12px"><button class="btn" data-a="addt">テーブルを追加</button></div>';
+  h+='<h2>バックアップ</h2><p class="note">データはこのスマホのブラウザの中だけに保存されていて、どこにも送っていません。ブラウザの履歴やデータを消すと一緒に消えるので、時々「データをコピー」して自分のメモなどに保管してください。機種変更や別のスマホに移すときは、そのテキストを「貼り付けて読み込む」で戻せます。</p><div class="row"><button class="btn" data-a="exp">データをコピー</button><button class="btn" data-a="imp">貼り付けて読み込む</button></div><div id="bk"></div>';
+  return h;
+}
+function render(){setTimeout(refreshChart,0);
+  const tabs=[['plan','席決め'],['people','利用者'],['rules','相性'],['tables','テーブル']];
+  const v={plan:vPlan,people:vPeople,rules:vRules,tables:vTables}[ui.tab]();
+  const sl=document.getElementById('cw')?.scrollLeft||0;
+  document.getElementById('root').innerHTML='<header><h1>明日の席決め</h1><p class="lead">データはこのスマホの中だけに保存されます</p><nav>'+tabs.map(([k,n])=>'<button class="'+(ui.tab===k?'on':'')+'" data-a="tab" data-k="'+k+'">'+n+'</button>').join('')+'</nav></header><main>'+v+'</main>'+(msg?'<div class="toast">'+esc(msg)+'</div>':'');
+  const cw=document.getElementById('cw');if(cw)cw.scrollLeft=sl;
+}
+function seatTap(t,k){
+  if(!sel){if(S.result[t]?.[k]){sel={t,k};render()}return}
+  if(sel.t===t&&sel.k===k){sel=null;render();return}
+  const A=S.result[sel.t],B=S.result[t];[A[sel.k],B[k]]=[B[k],A[sel.k]];sel=null;touch();
+}
+const root=document.getElementById('root');
+root.addEventListener('click',e=>{
+  if(e.target.id==='chartimg'&&S.result){const r=e.target.getBoundingClientRect();let cx=(e.clientX-r.left)*CW/r.width,cy=(e.clientY-r.top)*CH/r.height;if(isRot()){const rx=(e.clientX-r.left)*CH/r.width,ry=(e.clientY-r.top)*CW/r.height;cx=ry;cy=CH-rx}
+    const best=hits.map(q=>({q,d:Math.hypot(Math.max(q.x-cx,0,cx-q.x-q.w),Math.max(q.y-cy,0,cy-q.y-q.h))})).sort((m,n)=>m.d-n.d)[0],h=best&&best.d<40?best.q:null;if(h){armed=null;seatTap(h.t,h.k)}return}
+  const b=e.target.closest('[data-a]');if(!b||/INPUT|SELECT/.test(b.tagName))return;const a=b.dataset.a,id=b.dataset.id;
+  sel=null;
+  if(!/^del/.test(a))armed=null;
+  if(a==='tab'){ui.tab=b.dataset.k;ss.set('seki-ui',ui);render();scrollTo(0,0);return}
+  if(a==='clear-sample'){S={v:1,tables:S.tables,people:[],rules:[],plan:{date:tomorrow(),ids:[]},result:null};ui.tab='people';touch();return}
+  if(a==='auto'){const d=new Date(S.plan.date+'T00:00').getDay();S.plan.ids=S.people.filter(p=>p.days[d]).map(p=>p.id);S.result=null;touch();return}
+  if(a==='att'){const i=S.plan.ids.indexOf(id);i<0?S.plan.ids.push(id):S.plan.ids.splice(i,1);S.result=null;touch();return}
+  if(a==='solve'){S.result=solve(S.plan.ids.filter(P));touch();return}
+  if(a==='reset'){S.result=null;touch();return}
+  if(a==='copy'){const s=textOut(),o=document.getElementById('copyout');
+    navigator.clipboard?.writeText(s).then(()=>{say('コピーしました。LINEに貼り付けできます');render()},()=>{o.innerHTML='<textarea readonly>'+esc(s)+'</textarea>'})??(o.innerHTML='<textarea readonly>'+esc(s)+'</textarea>');return}
+  if(a==='addp'){const n=document.getElementById('newname').value.trim();if(!n)return;S.people.push({id:uid(),name:n,days:[false,true,true,true,true,true,false],allow:[],mob:'',fixed:null});if(S.sample)S.sample=false;touch();document.getElementById('newname')?.focus();return}
+  if(a==='bulk'){const ex=new Set(S.people.map(p=>p.name));const ns=document.getElementById('bulk').value.split(/[\n、,]+/).map(v=>v.trim()).filter(v=>v&&!ex.has(v));ns.forEach(n=>{ex.add(n);S.people.push({id:uid(),name:n,days:[false,true,true,true,true,true,false],allow:[],mob:'',fixed:null})});if(ns.length&&S.sample)S.sample=false;say(ns.length+'人追加しました');touch();return}
+  if(a==='day'){const p=P(id);p.days[+b.dataset.d]=!p.days[+b.dataset.d];touch();return}
+  if(a==='rot'){ui.rot=!isRot();ss.set('seki-ui',ui);chartURL='';render();return}
+  if(a==='pdf'||a==='png'||a==='print'){saveFile(a);return}
+  if(a==='tmove'){const i=S.tables.findIndex(t=>t.id===id),j=i+(+b.dataset.d);if(j<0||j>=S.tables.length)return;[S.tables[i],S.tables[j]]=[S.tables[j],S.tables[i]];touch();return}
+  if(a==='shape'){T(id).shape=b.dataset.s;touch();return}
+  if(a==='mob'){const p=P(id);p.mob=p.mob===b.dataset.m?'':b.dataset.m;S.result=null;touch();return}
+  if(a==='easy'){const t=T(id),k=+b.dataset.k,i=t.easy.indexOf(k);i<0?t.easy.push(k):t.easy.splice(i,1);S.result=null;touch();return}
+  if(a==='allow'){const p=P(id);p.allow=p.allow||[];const i=p.allow.indexOf(b.dataset.t);i<0?p.allow.push(b.dataset.t):p.allow.splice(i,1);touch();return}
+  if(a==='addr'){const x=document.getElementById('ra').value,y=document.getElementById('rb').value,t=document.getElementById('rt').value;
+    if(!x||!y||x===y){say('違う2人を選んでください');render();return}
+    S.rules=S.rules.filter(r=>!((r.a===x&&r.b===y)||(r.a===y&&r.b===x)));S.rules.push({id:uid(),a:x,b:y,type:t});touch();return}
+  if(a==='addt'){S.tables.push({id:uid(),name:String(S.tables.length+1),seats:8,easy:[],shape:'vert'});S.result=null;touch();return}
+  if(a==='seat-'||a==='seat+'){const t=T(id);t.seats=Math.max(1,Math.min(20,t.seats+(a==='seat+'?1:-1)));norm();S.result=null;touch();return}
+  if(a==='exp'){const s=JSON.stringify(S);document.getElementById('bk').innerHTML='<textarea readonly>'+esc(s)+'</textarea>';navigator.clipboard?.writeText(s).then(()=>{say('コピーしました。メモなどに貼り付けて保管してください');render()},()=>{});return}
+  if(a==='imp'){document.getElementById('bk').innerHTML='<textarea id="impt" placeholder="ここに貼り付け"></textarea><button class="btn" data-a="imp2">読み込む</button>';return}
+  if(a==='imp2'){try{const d=JSON.parse(document.getElementById('impt').value);if(!Array.isArray(d.people)||!Array.isArray(d.tables))throw 0;delete d.boardDone;delete d.saved;S=d;S.sample=false;norm();say('読み込みました');touch()}catch(err){say('読み込めませんでした');render()}return}
+  if(/^del/.test(a)){if(armed!==id){armed=id;render();setTimeout(()=>{if(armed===id){armed=null;render()}},3000);return}
+    armed=null;
+    if(a==='delp'){S.people=S.people.filter(p=>p.id!==id);S.rules=S.rules.filter(r=>r.a!==id&&r.b!==id);S.plan.ids=S.plan.ids.filter(i=>i!==id);S.result=null}
+    if(a==='delr')S.rules=S.rules.filter(r=>r.id!==id);
+    if(a==='delt'){S.tables=S.tables.filter(t=>t.id!==id);S.people.forEach(p=>p.allow=(p.allow||[]).filter(x=>x!==id));S.result=null;norm()}
+    if(S.sample)S.sample=false;touch()}
+});
+root.addEventListener('change',e=>{
+  const el=e.target;
+  if(el.id==='date'&&el.value){S.plan.date=el.value;S.result=null;touch()}
+  if(el.dataset.a==='fix'){const p=P(el.dataset.id);if(el.value){const[t,k]=el.value.split(':');p.fixed={t,k:+k}}else p.fixed=null;S.result=null;touch()}
+  if(el.dataset.a==='tname'){const t=T(el.dataset.id);t.name=el.value.trim()||t.name;touch()}
+});
+root.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='newname')root.querySelector('[data-a=addp]').click()});
+render();
+}</script></body></html>
