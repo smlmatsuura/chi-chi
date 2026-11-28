@@ -65,7 +65,7 @@ function sample(){
 }
 let S=ls.get(KEY)||sample();
 if(!S.plan||!S.plan.date||S.plan.date<ymd(new Date())){S.plan={date:tomorrow(),ids:[]};S.result=null}
-function norm(){S.tables.forEach(t=>{t.easy=(t.easy||[]).filter(k=>k<t.seats);t.shape=['rect','vert','round','hex'].includes(t.shape)?t.shape:'rect'});S.people.forEach(p=>{p.allow=p.allow||[];if(!p.prefs)p.prefs=p.fixed?[p.fixed]:[];delete p.fixed;p.prefs=p.prefs.filter(f=>{const ft=f&&S.tables.find(t=>t.id===f.t);return ft&&f.k<ft.seats}).slice(0,3);p.mob=p.mob===true?'wc':['wc','walker'].includes(p.mob)?p.mob:'';p.days=p.days||[false,true,true,true,true,true,false]});S.rules=S.rules||[]}
+function norm(){S.tables.forEach(t=>{t.easy=(t.easy||[]).filter(k=>k<t.seats);t.shape=['rect','vert','round','hex'].includes(t.shape)?t.shape:'rect'});S.people.forEach(p=>{p.allow=p.allow||[];if(!p.prefs)p.prefs=p.fixed?[p.fixed]:[];delete p.fixed;p.prefs=p.prefs.filter(f=>f&&(f.t==='*'?S.tables.some(t=>f.k<t.seats):(()=>{const ft=S.tables.find(t=>t.id===f.t);return ft&&f.k<ft.seats})())).slice(0,3);p.mob=p.mob===true?'wc':['wc','walker'].includes(p.mob)?p.mob:'';p.days=p.days||[false,true,true,true,true,true,false]});S.rules=S.rules||[]}
 norm();
 const ui=Object.assign({tab:'plan'},ss.get('seki-ui')||{});
 let sel=null,msg='',armed=null,msgT=0;
@@ -88,7 +88,11 @@ function score(ids,of){
 }
 /* 指定席：全員の第1希望を先に、空いていなければ第2・第3希望。同じ席の取り合いは、ほかに希望がない人を優先 */
 function fixedMap(ids){const m={},used=new Set(),ws=shuffle(ids.filter(id=>P(id)?.prefs?.length)).sort((a,b)=>P(a).prefs.length-P(b).prefs.length);
-  for(let lv=0;lv<3;lv++)for(const id of ws){if(m[id])continue;const f=P(id).prefs[lv],t=f&&T(f.t);if(!t||f.k>=t.seats)continue;const key=f.t+':'+f.k;if(used.has(key))continue;used.add(key);m[id]=f}
+  const rel=(a,b)=>{for(const r of S.rules)if((r.a===a&&r.b===b)||(r.a===b&&r.b===a))return r.type==='ng'?-100:r.type==='far'?-10:5;return 0};
+  for(let lv=0;lv<3;lv++)for(const any of[false,true])for(const id of ws){if(m[id])continue;const f=P(id).prefs[lv];if(!f||(f.t==='*')!==any)continue;
+    const cs=(any?S.tables:[T(f.t)]).filter(t=>t&&f.k<t.seats&&!used.has(t.id+':'+f.k));if(!cs.length)continue;
+    const t=cs.map(t=>({t,s:Object.keys(m).filter(o=>m[o].t===t.id).reduce((a,o)=>a+rel(id,o),0)+Math.random()})).sort((x,y)=>y.s-x.s)[0].t;
+    used.add(t.id+':'+f.k);m[id]={t:t.id,k:f.k}}
   return m}
 /* 空席は端に寄せる：縦長机・横長机は各列の1番・5番側、丸・六角はひとかたまり */
 function gapPen(t,occ){const n=t.seats;
@@ -149,7 +153,7 @@ function issues(){
     if(r.type==='good'&&!same)out.push(['ok','一緒がいい：'+n+' は別テーブルです（席の都合）'])}
   for(const id in of){const p=P(id);if(p?.allow?.length&&!p.allow.includes(of[id]))out.push(['ng',p.name+' さんは指定テーブル以外になっています'])}
   for(const t of S.tables)(S.result[t.id]||[]).forEach((i,k)=>{if(i&&P(i)?.mob&&!t.easy.includes(k))out.push(['ng',P(i).name+' さん（'+MOB[P(i).mob]+'）が通りにくい席（'+t.name+' '+(k+1)+'番）です'])});
-  for(const id of Object.keys(of)){const ps=P(id)?.prefs||[];if(ps.length&&!ps.some(f=>S.result[f.t]?.[f.k]===id))out.push(['far',P(id).name+' さんは'+(ps.length>1?'指定席（第1〜第'+ps.length+'希望）':'指定席')+'が空いていなかったので別の席です'])}
+  for(const id of Object.keys(of)){const ps=P(id)?.prefs||[];if(ps.length&&!ps.some(f=>f.t==='*'?S.tables.some(t=>S.result[t.id]?.[f.k]===id):S.result[f.t]?.[f.k]===id))out.push(['far',P(id).name+' さんは'+(ps.length>1?'指定席（第1〜第'+ps.length+'希望）':'指定席')+'が空いていなかったので別の席です'])}
   return out;
 }
 function textOut(){
@@ -287,7 +291,7 @@ function vPerson(p){
     '<div class="lbl">名前</div><input data-a="pname" data-id="'+p.id+'" value="'+esc(p.name)+'" style="width:100%;max-width:360px">'+
     '<div class="lbl">利用曜日</div><div class="chips">'+[1,2,3,4,5,6,0].map(d=>'<button class="chip mini'+(p.days[d]?' on':'')+'" data-a="day" data-id="'+p.id+'" data-d="'+d+'">'+DAYS[d]+'</button>').join('')+'</div>'+
     '<div class="lbl">移動</div><div class="chips">'+Object.entries(MOB).map(([k,v])=>'<button class="chip mini'+(p.mob===k?' on':'')+'" data-a="mob" data-id="'+p.id+'" data-m="'+k+'">'+v+'</button>').join('')+'</div>'+
-    '<div class="lbl">指定席（第1希望が埋まっていたら第2、第3の順）</div>'+[0,1,2].map(lv=>{const cur=p.prefs[lv];return '<div class="row" style="margin-bottom:6px"><span style="width:4.5em;font-size:14px">第'+(lv+1)+'希望</span><select data-a="fix" data-id="'+p.id+'" data-l="'+lv+'" style="flex:1;max-width:320px"'+(lv>p.prefs.length?' disabled':'')+'><option value="">なし</option>'+S.tables.map(t=>[...Array(t.seats).keys()].map(k=>{const on=cur&&cur.t===t.id&&cur.k===k,o=S.people.find(q=>q!==p&&q.prefs?.some(f=>f.t===t.id&&f.k===k));return'<option value="'+t.id+':'+k+'"'+(on?' selected':'')+'>'+esc(t.name)+' の '+(k+1)+'番'+(t.easy.includes(k)?'（通りやすい）':'')+(o?'　※'+esc(o.name)+'さんも指定':'')+'</option>'}).join('')).join('')+'</select></div>'}).join('')+
+    '<div class="lbl">指定席（第1希望が埋まっていたら第2、第3の順）</div>'+[0,1,2].map(lv=>{const cur=p.prefs[lv];return '<div class="row" style="margin-bottom:6px"><span style="width:4.5em;font-size:14px">第'+(lv+1)+'希望</span><select data-a="fix" data-id="'+p.id+'" data-l="'+lv+'" style="flex:1;max-width:320px"'+(lv>p.prefs.length?' disabled':'')+'><option value="">なし</option><optgroup label="どのテーブルでも">'+[...Array(Math.max(...S.tables.map(t=>t.seats))).keys()].map(k=>'<option value="*:'+k+'"'+(cur&&cur.t==='*'&&cur.k===k?' selected':'')+'>どのテーブルでも '+(k+1)+'番</option>').join('')+'</optgroup><optgroup label="テーブルも指定">'+S.tables.map(t=>[...Array(t.seats).keys()].map(k=>{const on=cur&&cur.t===t.id&&cur.k===k,o=S.people.find(q=>q!==p&&q.prefs?.some(f=>f.t===t.id&&f.k===k));return'<option value="'+t.id+':'+k+'"'+(on?' selected':'')+'>'+esc(t.name)+' の '+(k+1)+'番'+(t.easy.includes(k)?'（通りやすい）':'')+(o?'　※'+esc(o.name)+'さんも指定':'')+'</option>'}).join('')).join('')+'</optgroup></select></div>'}).join('')+
     '<div class="lbl">座れるテーブル（決まっている人だけ）</div><div class="chips">'+S.tables.map(t=>'<button class="chip mini'+((p.allow||[]).includes(t.id)?' on':'')+'" data-a="allow" data-id="'+p.id+'" data-t="'+t.id+'">'+esc(t.name)+'</button>').join('')+'</div>'+
     [['good','OKな人（できれば同じテーブル・隣に）'],['ng','ダメな人（必ず別のテーブル）'],['far','できれば離したい人']].map(([ty,lb])=>{const rs=S.rules.filter(r=>r.type===ty&&(r.a===p.id||r.b===p.id)&&P(r.a)&&P(r.b)),others=S.people.filter(q=>q!==p&&!S.rules.some(r=>(r.a===p.id&&r.b===q.id)||(r.b===p.id&&r.a===q.id)));
       return '<div class="lbl">'+lb+'</div><div class="chips">'+rs.map(r=>'<button class="chip mini" data-a="rmr" data-id="'+r.id+'"><span class="tag '+ty+'" style="margin-right:4px">'+RS[ty]+'</span>'+esc(P(r.a===p.id?r.b:r.a).name)+' ×</button>').join('')+'</div><div class="row" style="margin-top:6px"><select id="pr-'+ty+'" style="flex:1;max-width:260px"><option value="">選んで追加</option>'+others.map(q=>'<option value="'+q.id+'">'+esc(q.name)+'</option>').join('')+'</select><button class="btn small" data-a="prule" data-id="'+p.id+'" data-t="'+ty+'">追加</button></div>'}).join('')+
