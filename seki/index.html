@@ -87,6 +87,21 @@ function score(ids,of){
   return s;
 }
 function fixedMap(ids){const m={},used=new Set();for(const id of ids){const f=P(id)?.fixed,t=f&&T(f.t);if(!t||f.k>=t.seats)continue;const key=f.t+':'+f.k;if(used.has(key))continue;used.add(key);m[id]=f}return m}
+/* 空席は端に寄せる：縦長机・横長机は各列の1番・5番側、丸・六角はひとかたまり */
+function gapPen(t,occ){const n=t.seats;
+  if(t.shape==='vert'||t.shape==='rect'){const L=Math.ceil(n/2);let pen=0;const c=[0,0];
+    [[0,L],[L,n]].forEach(([a,b],si)=>{let f=-1,l=-1;for(let k=a;k<b;k++)if(occ.has(k)){if(f<0)f=k;l=k;c[si]++}
+      if(f<0)return;for(let k=f;k<=l;k++)if(!occ.has(k))pen+=100;pen+=(b-1-l)*3});
+    return pen+Math.abs(c[0]-c[1])*10}
+  let runs=0,emp=0;for(let k=0;k<n;k++){if(!occ.has(k)){emp+=k;if(occ.has((k-1+n)%n))runs++}}
+  return Math.max(0,runs-1)*100-emp*0.1}
+function pickSeats(t,seat,m,mobN){
+  const free=[...Array(t.seats).keys()].filter(k=>!seat[k]),isE=k=>t.easy.includes(k),eNeed=Math.min(mobN,free.filter(isE).length),fixed=[...Array(t.seats).keys()].filter(k=>seat[k]);
+  let best=null,bs=Infinity;
+  const go=(st,cur)=>{if(cur.length===m){if(cur.filter(isE).length<eNeed)return;const sc=gapPen(t,new Set(fixed.concat(cur)))+Math.random()*0.01;if(sc<bs){bs=sc;best=cur.slice()}return}
+    for(let i=st;i<=free.length-(m-cur.length);i++){cur.push(free[i]);go(i+1,cur);cur.pop()}};
+  go(0,[]);return best||free.slice(0,m);
+}
 function solve(ids){
   const tb=S.tables;let cands=[],best=-Infinity;const fx=fixedMap(ids);
   for(let r=0;r<150;r++){
@@ -109,9 +124,10 @@ function solve(ids){
   const prev=S.result?key(Object.fromEntries(Object.entries(S.result).flatMap(([t,a])=>a.filter(Boolean).map(i=>[i,t])))):'';
   let pool=cands.filter(c=>key(c)!==prev);if(!pool.length)pool=cands;
   const of=pool[Math.random()*pool.length|0],res={};
-  for(const t of tb){const m=shuffle(ids.filter(i=>of[i]===t.id&&!fx[i])),mob=m.filter(i=>P(i).mob),oth=m.filter(i=>!P(i).mob);
+  for(const t of tb){const m=ids.filter(i=>of[i]===t.id&&!fx[i]),mob=shuffle(m.filter(i=>P(i).mob)),oth=shuffle(m.filter(i=>!P(i).mob));
     const seat=Array(t.seats).fill(null);for(const i in fx)if(fx[i].t===t.id)seat[fx[i].k]=i;
-    const ez=shuffle(t.easy.filter(k=>!seat[k])),rest=shuffle([...Array(t.seats).keys()].filter(k=>!t.easy.includes(k)&&!seat[k]));
+    const isE=k=>t.easy.includes(k),use=pickSeats(t,seat,m.length,mob.length);
+    const ez=shuffle(use.filter(isE)),rest=shuffle(use.filter(k=>!isE(k)));
     for(const i of mob){const k=ez.length?ez.pop():rest.pop();seat[k]=i}
     const left=shuffle(ez.concat(rest));for(const i of oth)seat[left.pop()]=i;res[t.id]=seat}
   return res;
